@@ -300,6 +300,7 @@ libbitcoin_server_a_SOURCES = \
   cc/CCutils.cpp \
   cc/CCvalidation.cpp \
   cc/CCtokens.cpp \
+  cc/CCtokens_extra.cpp \
   cc/old/CCtokens_v0.cpp \
   cc/assets.cpp \
   cc/old/assets_v0.cpp \
@@ -357,6 +358,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/rawtransaction.cpp \
   rpc/server.cpp \
   rpc/tokensrpc.cpp \
+  rpc/tokensrpc_extra.cpp \
   rpc/pricesrpc.cpp \
   rpc/marmararpc.cpp \
   script/serverchecker.cpp \

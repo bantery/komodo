@@ -36,6 +36,8 @@ void RegisterMiningRPCCommands(CRPCTable &tableRPC);
 void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
 // tokens cc rpcs:
 void RegisterTokensRPCCommands(CRPCTable &tableRPC);
+// tokens cc extra rpcs:
+void RegisterTokensExtraRPCCommands(CRPCTable &tableRPC);
 // marmara cc rpcs:
 void RegisterMarmaraRPCCommands(CRPCTable &tableRPC);
 
@@ -47,6 +49,7 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
     RegisterTokensRPCCommands(tableRPC);
+    RegisterTokensExtraRPCCommands(tableRPC);
     RegisterMarmaraRPCCommands(tableRPC);
 }
 
