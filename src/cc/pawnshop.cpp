@@ -37,7 +37,7 @@ uint8_t DecodePawnshopCreateOpRet(CScript scriptPubKey,uint8_t &version,std::str
 }
 
 ///// not implemented yet /////
-CScript EncodePawnshopScheduleOpRet(uint8_t version,uint256 createtxid,int64_t principal,uint64_t duedate,bool bRelative)
+/*CScript EncodePawnshopScheduleOpRet(uint8_t version,uint256 createtxid,int64_t principal,uint64_t duedate,bool bRelative)
 {
 	CScript opret; uint8_t evalcode = EVAL_PAWNSHOP, funcid = 't';
 	opret << OP_RETURN << E_MARSHAL(ss << evalcode << funcid << version << principal << duedate << bRelative);
@@ -50,7 +50,7 @@ uint8_t DecodePawnshopScheduleOpRet(CScript scriptPubKey,uint8_t &version,uint25
 	if (vopret.size() > 2 && E_UNMARSHAL(vopret, ss >> evalcode; ss >> funcid; ss >> version; ss >> createtxid; ss >> principal; ss >> duedate; ss >> bRelative) != 0 && evalcode == EVAL_PAWNSHOP)
 		return(funcid);
 	return(0);
-}
+}*/
 ///// not implemented yet /////
 
 CScript EncodePawnshopOpRet(uint8_t funcid,uint8_t version,uint256 createtxid,uint256 tokenid,CPubKey tokensupplier,CPubKey coinsupplier)
