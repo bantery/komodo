@@ -54,20 +54,21 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	int64_t payment, arbitratorfee, deposit;
     if (fHelp || params.size() < 4 || params.size() > 9)
         throw runtime_error(
-            "agreementcreate \"name\" datahash \"client\" \"arbitrator\" ( arbitratorfee payment deposit prevproposaltxid refagreementtxid )\n"
+            "agreementcreate \"name\" datahash ( \"client\" \"arbitrator\" arbitratorfee payment deposit prevproposaltxid refagreementtxid )\n"
             "\nCreate a new agreement proposal transaction and return the raw hex. The agreement will be fully set up once this proposal is\n"
             "accepted by the owner of the designated recipient pubkey.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. \"name\"        (string, required) Name of the proposed agreement. (max 64 characters)\n"
-            "2. datahash       (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
-            "                                     a digital document or to reference a transaction in the blockchain.\n"
-            "3. \"client\"      (string, required) Pubkey of proposal's intended recipient. If set to 0, a proposal draft will be created.\n"
-            "4. \"arbitrator\"  (string, required) Pubkey of proposed arbitrator for the agreement. If set to 0, the agreement will have no arbitrator.\n"
+            "2. datahash     (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
+            "                                    a digital document or to reference a transaction in the blockchain.\n"
+            "3. \"client\"      (string, optional) Pubkey of proposal's intended recipient. If undefined or set to 0, a proposal draft will be created.\n"
+            "4. \"arbitrator\"  (string, optional) Pubkey of proposed arbitrator for the agreement. If undefined or set to 0, the agreement will have no\n"
+            "                                    arbitrator.\n"
             "5. arbitratorfee   (numeric, optional, default=0) Fee that will be required to allocate to the arbitrator in order to create a dispute\n"
             "                                                  for the proposed agreement. If no arbitrator is set, always resets to 0, otherwise must\n"
             "                                                  be set to at least 10000 satoshis.\n"
-            "6. payment      (numeric, optional, default=0) If set, recipient will have to send this amount of funds to the sender in order to\n"
+            "6. payment         (numeric, optional, default=0) If set, recipient will have to send this amount of funds to the sender in order to\n"
             "                                                  accept this proposal successfully.\n"
             "7. deposit         (numeric, optional, default=0) Amount that the intended recipient will have to allocate to the agreement global address\n"
             "                                                  for deposit in order to accept this proposal successfully. If arbitrator is set, this\n"

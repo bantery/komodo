@@ -1269,10 +1269,10 @@ UniValue AgreementCreate(const CPubKey& pk, uint64_t txfee, std::string name, ui
 	bHasReceiver = CPK_dest.IsFullyValid();
 	bHasArbitrator = CPK_arbitrator.IsFullyValid();
 	// check if destpub & arbitrator pubkeys exist and are valid
-	if (!destpub.empty() && !bHasReceiver)
+	/*if (!destpub.empty() && !bHasReceiver)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Receiver pubkey invalid");
 	if (!arbitrator.empty() && !bHasArbitrator)
-		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Arbitrator pubkey invalid");
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Arbitrator pubkey invalid");*/
 	// if arbitrator exists, check if arbitrator fee & deposit are sufficient
 	if (bHasArbitrator)
 	{
@@ -1280,16 +1280,13 @@ UniValue AgreementCreate(const CPubKey& pk, uint64_t txfee, std::string name, ui
 			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Arbitrator fee must be specified if valid arbitrator exists");
 		else if (arbitratorfee < CC_MARKER_VALUE)
 			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Arbitrator fee is too low");
-		if (deposit == 0)
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit must be specified if valid arbitrator exists");
-		else if (deposit < CC_MARKER_VALUE)
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit is too low");
 	}
 	else
 	{
 		arbitratorfee = 0;
-		deposit = CC_MARKER_VALUE;
 	}
+	if (deposit < CC_MARKER_VALUE)
+		deposit = CC_MARKER_VALUE;
 	// additional checks are done using ValidateProposalOpRet
 	CScript opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,'p',std::vector<uint8_t>(mypk.begin(),mypk.end()),destpub,arbitrator,payment,arbitratorfee,deposit,datahash,refagreementtxid,prevproposaltxid,name);
 	if (!ValidateProposalOpRet(opret, CCerror))
