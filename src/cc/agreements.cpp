@@ -1908,8 +1908,8 @@ UniValue AgreementInfo(uint256 txid)
 						{
 							members.push_back(Pair("arbitrator",HexStr(arbitrator)));
 							data.push_back(Pair("arbitrator_fee",arbitratorfee));
-							data.push_back(Pair("deposit",deposit));
 						}
+						data.push_back(Pair("deposit",deposit));
 						if (agreementtxid != zeroid)
 							data.push_back(Pair("master_contract_txid",agreementtxid.GetHex()));
 						break;
@@ -1982,9 +1982,9 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("accepted_txid",proposaltxid.GetHex()));
 				members.push_back(Pair("seller",HexStr(srcpub)));
 				members.push_back(Pair("client",HexStr(destpub)));
+				result.push_back(Pair("deposit",deposit));
 				if (bHasArbitrator)
-				{
-					result.push_back(Pair("deposit",deposit));
+				{	
 					members.push_back(Pair("arbitrator",HexStr(arbitrator)));
 				}
 				result.push_back(Pair("members",members));
@@ -2049,12 +2049,9 @@ UniValue AgreementInfo(uint256 txid)
 				data.push_back(Pair("revision",revision));
 				data.push_back(Pair("name",name));
 				data.push_back(Pair("data_hash",datahash.GetHex()));
-				if (CPK_arbitrator.IsFullyValid())
-				{
-					data.push_back(Pair("deposit_for_sender", deposit));
-					data.push_back(Pair("deposit_for_receiver", totaldeposit-deposit));
-					data.push_back(Pair("total_deposit", totaldeposit));
-				}
+				data.push_back(Pair("deposit_for_sender", deposit));
+				data.push_back(Pair("deposit_for_receiver", totaldeposit-deposit));
+				data.push_back(Pair("total_deposit", totaldeposit));
 				result.push_back(Pair("data",data));
 				break;
 			case 'd':
