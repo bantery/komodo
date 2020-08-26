@@ -1437,11 +1437,9 @@ UniValue AgreementClose(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "you are not a valid member of this agreement");
 	CPK_dest = pubkey2pk(destpub);
 	// checking deposit cut to prevent vouts with dust value
-	if (depositcut == 0)
-		depositcut = CC_MARKER_VALUE;
-	else if (depositcut != 0 && depositcut < CC_MARKER_VALUE)
+	if (depositcut != 0 && depositcut < CC_MARKER_VALUE)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit cut is too low");
-	if (depositcut > deposit)
+	else if (depositcut > deposit)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit cut exceeds total deposit value");
 	else if ((deposit - depositcut) != 0 && (deposit - depositcut) < CC_MARKER_VALUE)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Remainder of deposit is too low");
