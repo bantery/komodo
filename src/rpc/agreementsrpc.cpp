@@ -52,7 +52,7 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	uint256 datahash, prevproposaltxid, refagreementtxid;
 	std::string name;
 	int64_t payment, arbitratorfee, deposit;
-    if (fHelp || params.size() < 4 || params.size() > 9)
+    if (fHelp || params.size() < 2 || params.size() > 9)
         throw runtime_error(
             "agreementcreate \"name\" datahash ( \"client\" \"arbitrator\" arbitratorfee payment deposit prevproposaltxid refagreementtxid )\n"
             "\nCreate a new agreement proposal transaction and return the raw hex. The agreement will be fully set up once this proposal is\n"
@@ -82,9 +82,9 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
             "\"result\"  (string) Whether this RPC was executed successfully.\n"
             "\"hex\"  (string) The signed raw transaction hex which can be broadcasted using the sendrawtransaction rpc.\n"
             "\nExamples:\n"
-            + HelpExampleCli("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 0 0")
+            + HelpExampleCli("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4")
             + HelpExampleCli("agreementcreate", "\"complex agreement with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 \"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\" \"0312b7f892c33da8fefbc5db6243d30c063031140fe0a130250aa79c66f8124b42\" 10000 10000 10000 b8be8288b85f24b0f48c5eaf46125cc7703a215f38521b32d2b3cba060961607 56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
-            + HelpExampleRpc("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 0 0")
+            + HelpExampleRpc("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4")
             + HelpExampleRpc("agreementcreate", "\"complex agreement with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 \"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\" \"0312b7f892c33da8fefbc5db6243d30c063031140fe0a130250aa79c66f8124b42\" 10000 10000 10000 b8be8288b85f24b0f48c5eaf46125cc7703a215f38521b32d2b3cba060961607 56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
         );
     if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
