@@ -52,7 +52,7 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	uint256 datahash, prevproposaltxid, refagreementtxid;
 	std::string name;
 	int64_t payment, arbitratorfee, deposit;
-    if (fHelp || params.size() < 2 || params.size() > 9)
+    if (fHelp || params.size() < 4 || params.size() > 9)
         throw runtime_error(
             "agreementcreate \"name\" datahash ( \"client\" \"arbitrator\" arbitratorfee payment deposit prevproposaltxid refagreementtxid )\n"
             "\nCreate a new agreement proposal transaction and return the raw hex. The agreement will be fully set up once this proposal is\n"
@@ -62,8 +62,8 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
             "1. \"name\"        (string, required) Name of the proposed agreement. (max 64 characters)\n"
             "2. datahash     (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                    a digital document or to reference a transaction in the blockchain.\n"
-            "3. \"client\"      (string, optional) Pubkey of proposal's intended recipient. If undefined or set to 0, a proposal draft will be created.\n"
-            "4. \"arbitrator\"  (string, optional) Pubkey of proposed arbitrator for the agreement. If undefined or set to 0, the agreement will have no\n"
+            "3. \"client\"      (string, required) Pubkey of proposal's intended recipient. If set to \"\" or 0, a proposal draft will be created.\n"
+            "4. \"arbitrator\"  (string, required) Pubkey of proposed arbitrator for the agreement. If set to \"\" or 0, the agreement will have no\n"
             "                                    arbitrator.\n"
             "5. arbitratorfee   (numeric, optional, default=0) Fee that will be required to allocate to the arbitrator in order to create a dispute\n"
             "                                                  for the proposed agreement. If no arbitrator is set, always resets to 0, otherwise must\n"
@@ -82,9 +82,9 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
             "\"result\"  (string) Whether this RPC was executed successfully.\n"
             "\"hex\"  (string) The signed raw transaction hex which can be broadcasted using the sendrawtransaction rpc.\n"
             "\nExamples:\n"
-            + HelpExampleCli("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4")
+            + HelpExampleCli("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 0 0")
             + HelpExampleCli("agreementcreate", "\"complex agreement with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 \"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\" \"0312b7f892c33da8fefbc5db6243d30c063031140fe0a130250aa79c66f8124b42\" 10000 10000 10000 b8be8288b85f24b0f48c5eaf46125cc7703a215f38521b32d2b3cba060961607 56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
-            + HelpExampleRpc("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4")
+            + HelpExampleRpc("agreementcreate", "\"short draft with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 0 0")
             + HelpExampleRpc("agreementcreate", "\"complex agreement with info\" e4815ed5db07f4ee56cd657d41df1022a7b4a169939d51cd28d66a393895b2c4 \"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\" \"0312b7f892c33da8fefbc5db6243d30c063031140fe0a130250aa79c66f8124b42\" 10000 10000 10000 b8be8288b85f24b0f48c5eaf46125cc7703a215f38521b32d2b3cba060961607 56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
         );
     if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
