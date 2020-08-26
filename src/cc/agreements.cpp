@@ -1437,18 +1437,14 @@ UniValue AgreementClose(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "you are not a valid member of this agreement");
 	CPK_dest = pubkey2pk(destpub);
 	// checking deposit cut to prevent vouts with dust value
-	if (pubkey2pk(arbitratorpk).IsFullyValid())
-	{
-		if (depositcut != 0 && depositcut < CC_MARKER_VALUE)
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit cut is too low");
-		if (depositcut > deposit)
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit cut exceeds total deposit value");
-		else if ((deposit - depositcut) != 0 && (deposit - depositcut) < CC_MARKER_VALUE)
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Remainder of deposit is too low");
-	}
-	else
+	if (depositcut == 0)
 		depositcut = CC_MARKER_VALUE;
-	if (depositcut == 0) depositcut = CC_MARKER_VALUE;
+	else if (depositcut != 0 && depositcut < CC_MARKER_VALUE)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit cut is too low");
+	if (depositcut > deposit)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit cut exceeds total deposit value");
+	else if ((deposit - depositcut) != 0 && (deposit - depositcut) < CC_MARKER_VALUE)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Remainder of deposit is too low");
 	// additional checks are done using ValidateProposalOpRet
 	CScript opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,'t',std::vector<uint8_t>(mypk.begin(),mypk.end()),destpub,arbitratorpk,payment,CC_MARKER_VALUE,depositcut,datahash,agreementtxid,prevproposaltxid,name);
 	if (!ValidateProposalOpRet(opret, CCerror))
