@@ -54,7 +54,7 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	int64_t payment, arbitratorfee, deposit;
     if (fHelp || params.size() < 4 || params.size() > 9)
         throw runtime_error(
-            "agreementcreate \"name\" datahash ( \"client\" \"arbitrator\" arbitratorfee payment deposit prevproposaltxid refagreementtxid )\n"
+            "agreementcreate \"name\" datahash \"client\" \"arbitrator\" ( arbitratorfee payment deposit prevproposaltxid refagreementtxid )\n"
             "\nCreate a new agreement proposal transaction and return the raw hex. The agreement will be fully set up once this proposal is\n"
             "accepted by the owner of the designated recipient pubkey.\n"
             + HelpRequiringPassphrase() +
