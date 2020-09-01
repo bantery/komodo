@@ -2013,7 +2013,7 @@ UniValue AgreementInfo(uint256 txid)
 				data.push_back(Pair("revisions",revision));
 				if (bHasArbitrator)
 					data.push_back(Pair("arbitrator_fee",arbitratorfee));
-				data.push_back(Pair("latest_info",name));
+				data.push_back(Pair("latest_name",name));
 				data.push_back(Pair("latest_data_hash",datahash.GetHex()));
 				result.push_back(Pair("data",data));
 				break;
