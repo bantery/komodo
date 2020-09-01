@@ -47,9 +47,9 @@ uint8_t DecodeAgreementOpRet(const CScript scriptPubKey);
 /// @param datahash field for arbitrary sha256 hash
 /// @param agreementtxid transaction id of a valid  agreement in the blockchain. Required for 'u' and 'c' proposal type data
 /// @param prevproposaltxid transaction id of another proposal to be superseded by this proposal
-/// @param info field for arbitrary data string
+/// @param name field for arbitrary data string
 /// @returns the encoded CScript object.
-CScript EncodeAgreementProposalOpRet(uint8_t version, uint8_t proposaltype, std::vector<uint8_t> srcpub, std::vector<uint8_t> destpub, std::vector<uint8_t> arbitratorpk, int64_t payment, int64_t arbitratorfee, int64_t depositval, uint256 datahash, uint256 agreementtxid, uint256 prevproposaltxid, std::string info);
+CScript EncodeAgreementProposalOpRet(uint8_t version, uint8_t proposaltype, std::vector<uint8_t> srcpub, std::vector<uint8_t> destpub, std::vector<uint8_t> arbitratorpk, int64_t payment, int64_t arbitratorfee, int64_t depositval, uint256 datahash, uint256 agreementtxid, uint256 prevproposaltxid, std::string name);
 
 /// Encodes op_return data required for a valid agreement proposal transaction into a CScript object, and appends the 'p' function id.
 /// @param scriptPubKey op_return data object
@@ -64,9 +64,9 @@ CScript EncodeAgreementProposalOpRet(uint8_t version, uint8_t proposaltype, std:
 /// @param datahash field for arbitrary sha256 hash
 /// @param agreementtxid transaction id of a valid  agreement in the blockchain. Required for 'u' and 'c' proposal type data
 /// @param prevproposaltxid transaction id of another proposal to be superseded by this proposal
-/// @param info field for arbitrary data string
+/// @param name field for arbitrary data string
 /// @returns the function id found within the CScript object. If data malformed or function is invalid, returns (uint8_t)0.
-uint8_t DecodeAgreementProposalOpRet(CScript scriptPubKey, uint8_t &version, uint8_t &proposaltype, std::vector<uint8_t> &srcpub, std::vector<uint8_t> &destpub, std::vector<uint8_t> &arbitratorpk, int64_t &payment, int64_t &arbitratorfee, int64_t &depositval, uint256 &datahash, uint256 &agreementtxid, uint256 &prevproposaltxid, std::string &info);
+uint8_t DecodeAgreementProposalOpRet(CScript scriptPubKey, uint8_t &version, uint8_t &proposaltype, std::vector<uint8_t> &srcpub, std::vector<uint8_t> &destpub, std::vector<uint8_t> &arbitratorpk, int64_t &payment, int64_t &arbitratorfee, int64_t &depositval, uint256 &datahash, uint256 &agreementtxid, uint256 &prevproposaltxid, std::string &name);
 
 /// Encodes op_return data required for a valid agreement proposal closure transaction into a CScript object, and appends the 't' function id.
 /// @param version version of data structure
@@ -217,9 +217,9 @@ bool IsProposalSpent(uint256 proposaltxid, uint256 &spendingtxid, uint8_t &spend
 /// @param deposit deposit amount allocated for the agreement
 /// @param firstdatahash arbitrary sha256 hash defined in the accepted proposal transaction
 /// @param refagreementtxid id of the reference (master) agreement transaction
-/// @param firstinfo arbitrary data string defined in the accepted proposal transaction
+/// @param firstname arbitrary data string defined in the accepted proposal transaction
 /// @returns true if the data was retrieved successfully, otherwise false.
-bool GetAgreementInitialData(uint256 agreementtxid, uint256 &proposaltxid, std::vector<uint8_t> &sellerpk, std::vector<uint8_t> &clientpk, std::vector<uint8_t> &arbitratorpk, int64_t &firstarbitratorfee, int64_t &deposit, uint256 &firstdatahash, uint256 &refagreementtxid, std::string &firstinfo);
+bool GetAgreementInitialData(uint256 agreementtxid, uint256 &proposaltxid, std::vector<uint8_t> &sellerpk, std::vector<uint8_t> &clientpk, std::vector<uint8_t> &arbitratorpk, int64_t &firstarbitratorfee, int64_t &deposit, uint256 &firstdatahash, uint256 &refagreementtxid, std::string &firstname);
 
 /// Helper function that retrieves the data related to a specific agreement update transaction. Since the data is stored within a CScript object of the accepted update proposal's transaction rather than the update acceptance transaction itself, this function can be used to retrieve the data easily with only an agreement update id as a known argument.
 /// @param agreementtxid the id of the agreement transaction
@@ -230,19 +230,19 @@ bool GetLatestAgreementUpdate(uint256 agreementtxid, uint256 &latesttxid, uint8_
 
 /// Helper function that retrieves the data related to a specific agreement update transaction. Since the data is stored within a CScript object of the accepted update proposal's transaction rather than the update acceptance transaction itself, this function can be used to retrieve the data easily with only an agreement update id as a known argument.
 /// @param updatetxid the id of the agreement update transaction
-/// @param info arbitrary data string defined in the accepted update proposal transaction
+/// @param name arbitrary data string defined in the accepted update proposal transaction
 /// @param datahash arbitrary sha256 hash defined in the accepted update proposal transaction
 /// @param clientpk byte vector of the client pubkey
 /// @param arbitratorfee arbitrator fee defined in the accepted update proposal transaction
 /// @param depositsplit deposit split defined in the accepted update proposal transaction. Only used if the update proposal is of closure type ('s' function id)
 /// @param revision revision number of the specified agreement update transaction
 /// @returns true if the data was retrieved successfully, otherwise false.
-void GetAgreementUpdateData(uint256 updatetxid, std::string &info, uint256 &datahash, int64_t &arbitratorfee, int64_t &depositsplit, int64_t &revision);
+void GetAgreementUpdateData(uint256 updatetxid, std::string &name, uint256 &datahash, int64_t &arbitratorfee, int64_t &depositsplit, int64_t &revision);
 
 // for definitions of RPC implementations see the help sections in the pawnshoprpc.cpp file
-UniValue AgreementCreate(const CPubKey& pk, uint64_t txfee, std::string info, uint256 datahash, std::vector<uint8_t> destpub, std::vector<uint8_t> arbitrator, int64_t payment, int64_t arbitratorfee, int64_t deposit, uint256 prevproposaltxid, uint256 refagreementtxid);
-UniValue AgreementUpdate(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, std::string info, uint256 datahash, int64_t payment, uint256 prevproposaltxid, int64_t newarbitratorfee);
-UniValue AgreementClose(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, std::string info, uint256 datahash, int64_t depositcut, int64_t payment, uint256 prevproposaltxid);
+UniValue AgreementCreate(const CPubKey& pk, uint64_t txfee, std::string name, uint256 datahash, std::vector<uint8_t> destpub, std::vector<uint8_t> arbitrator, int64_t payment, int64_t arbitratorfee, int64_t deposit, uint256 prevproposaltxid, uint256 refagreementtxid);
+UniValue AgreementUpdate(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, std::string name, uint256 datahash, int64_t payment, uint256 prevproposaltxid, int64_t newarbitratorfee);
+UniValue AgreementClose(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, std::string name, uint256 datahash, int64_t depositcut, int64_t payment, uint256 prevproposaltxid);
 UniValue AgreementStopProposal(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid);
 UniValue AgreementAccept(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid);
 UniValue AgreementDispute(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, uint256 datahash);
