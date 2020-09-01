@@ -385,7 +385,7 @@ UniValue agreementdispute(const UniValue& params, bool fHelp, const CPubKey& myp
         throw runtime_error(
             "agreementdispute agreementtxid datahash\n"
             "\nCreate an agreement dispute transaction and return the raw hex. This transaction will cost the sender a fee equal to\n"
-            "by the latest arbitrator fee defined for the agreement. Only available if the agreement has an arbitrator.\n"
+            "the latest arbitrator fee defined for the agreement. Only available if the agreement has an arbitrator.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be disputed.\n"
