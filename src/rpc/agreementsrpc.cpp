@@ -72,7 +72,7 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
             "                                                  accept this proposal successfully.\n"
             "7. deposit         (numeric, optional, default=0) Amount that the intended recipient will have to allocate to the agreement global address\n"
             "                                                  for deposit in order to accept this proposal successfully. If arbitrator is set, this\n"
-            "                                                  must be set to at least to 10000 satoshis.\n"
+            "                                                  must be set to at least 10000 satoshis.\n"
             "8. prevproposaltxid (uint256, optional) Transaction id of a previous open proposal (draft) to create an agreement by the same\n"
             "                                        sender pubkey. If set, this proposal will supersede the one specified here.\n"
             "9. refagreementtxid (uint256, optional) Transaction id of another agreement in the blockchain that shares at least one member pubkey with\n"
