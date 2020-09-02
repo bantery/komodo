@@ -1922,13 +1922,10 @@ UniValue AgreementInfo(uint256 txid)
 					case 't':
 						result.push_back(Pair("proposal_type","contract_close"));
 						result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-						if (bHasArbitrator)
-						{
-							GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, arbitratorfee, totaldeposit, datahash, dummytxid, name);
-							data.push_back(Pair("deposit_for_sender", deposit));
-							data.push_back(Pair("deposit_for_receiver", totaldeposit-deposit));
-							data.push_back(Pair("total_deposit", totaldeposit));
-						}
+						GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, arbitratorfee, totaldeposit, datahash, dummytxid, name);
+						data.push_back(Pair("deposit_for_sender", deposit));
+						data.push_back(Pair("deposit_for_receiver", totaldeposit-deposit));
+						data.push_back(Pair("total_deposit", totaldeposit));
 						break;
 				}
 				result.push_back(Pair("members",members));
