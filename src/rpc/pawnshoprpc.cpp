@@ -465,7 +465,6 @@ UniValue pawnshoplist(const UniValue& params, bool fHelp, const CPubKey& mypk)
             + HelpExampleCli("pawnshoplist", "")
             + HelpExampleRpc("pawnshoplist", "")
         );
-        throw runtime_error("pawnshoplist\n");
     if ( ensure_CCrequirements(EVAL_PAWNSHOP) < 0 )
         throw runtime_error(CC_REQUIREMENTS_MSG);
     return(PawnshopList(mypk));
