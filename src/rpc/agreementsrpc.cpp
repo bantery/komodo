@@ -108,7 +108,8 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
     arbitratorfee = 0;
 	if (params.size() >= 5)
     {
-		arbitratorfee = atoll(params[4].get_str().c_str());
+		//arbitratorfee = atoll(params[4].get_str().c_str());
+        arbitratorfee = AmountFromValue(params[4]);
         if (arbitratorfee != 0 && arbitratorfee < 10000)
         {
 			Unlock2NSPV(mypk);
@@ -118,7 +119,8 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	payment = 0;
 	if (params.size() >= 6)
     {
-		payment = atoll(params[5].get_str().c_str());
+		//payment = atoll(params[5].get_str().c_str());
+        payment = AmountFromValue(params[5]);
 		if (payment != 0 && payment < 10000)
         {
 			Unlock2NSPV(mypk);
@@ -128,7 +130,8 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	deposit = 0;
 	if (params.size() >= 7)
     {
-		deposit = atoll(params[6].get_str().c_str());
+		//deposit = atoll(params[6].get_str().c_str());
+        deposit = AmountFromValue(params[6]);
         if (deposit != 0 && deposit < 10000)
         {
 			Unlock2NSPV(mypk);
@@ -274,7 +277,8 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
     }
 	payment = 0;
 	if (params.size() >= 4) {
-		payment = atoll(params[3].get_str().c_str());
+		//payment = atoll(params[3].get_str().c_str());
+        payment = AmountFromValue(params[3]);
 		if (payment != 0 && payment < 10000) {
 			Unlock2NSPV(mypk);
 			throw runtime_error("Payment too low\n");
@@ -286,7 +290,8 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
     }
 	arbitratorfee = 0;
 	if (params.size() == 6) {
-		arbitratorfee = atoll(params[5].get_str().c_str());
+		//arbitratorfee = atoll(params[5].get_str().c_str());
+        arbitratorfee = AmountFromValue(params[5]);
         if (arbitratorfee != 0 && arbitratorfee < 10000) {
 			Unlock2NSPV(mypk);
 			throw runtime_error("Arbitrator fee too low\n");
@@ -352,7 +357,8 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
     }
 	depositcut = 0;
 	if (params.size() >= 4) {
-		depositcut = atoll(params[3].get_str().c_str());
+		//depositcut = atoll(params[3].get_str().c_str());
+        depositcut = AmountFromValue(params[3]);
 		if (depositcut != 0 && depositcut < 10000) {
 			Unlock2NSPV(mypk);
 			throw runtime_error("Deposit cut too low\n");
@@ -360,7 +366,8 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
     }
 	payment = 0;
 	if (params.size() >= 5) {
-		payment = atoll(params[4].get_str().c_str());
+		//payment = atoll(params[4].get_str().c_str());
+        payment = AmountFromValue(params[4]);
 		if (payment != 0 && payment < 10000) {
 			Unlock2NSPV(mypk);
 			throw runtime_error("Payment too low\n");
