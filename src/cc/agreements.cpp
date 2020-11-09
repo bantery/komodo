@@ -1891,7 +1891,7 @@ UniValue AgreementInfo(uint256 txid)
 				if (bHasReceiver)
 					members.push_back(Pair("receiver",HexStr(destpub)));
 				if (payment > 0)
-					data.push_back(Pair("required_payment", payment));
+					data.push_back(Pair("required_payment", (double)payment/COIN));
 				data.push_back(Pair("name",name));
 				data.push_back(Pair("data_hash",datahash.GetHex()));
 				switch (proposaltype)
@@ -1901,9 +1901,9 @@ UniValue AgreementInfo(uint256 txid)
 						if (bHasArbitrator)
 						{
 							members.push_back(Pair("arbitrator",HexStr(arbitrator)));
-							data.push_back(Pair("arbitrator_fee",arbitratorfee));
+							data.push_back(Pair("arbitrator_fee",(double)arbitratorfee/COIN));
 						}
-						data.push_back(Pair("deposit",deposit));
+						data.push_back(Pair("deposit",(double)deposit/COIN));
 						if (agreementtxid != zeroid)
 							data.push_back(Pair("master_contract_txid",agreementtxid.GetHex()));
 						break;
@@ -1912,20 +1912,20 @@ UniValue AgreementInfo(uint256 txid)
 						result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
 						if (bHasArbitrator)
 						{
-							data.push_back(Pair("new_arbitrator_fee", arbitratorfee));
+							data.push_back(Pair("new_arbitrator_fee", (double)arbitratorfee/COIN));
 							GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, arbitratorfee, deposit, datahash, dummytxid, name);
 							GetLatestAgreementUpdate(agreementtxid, latesttxid, updatefuncid);
 							GetAgreementUpdateData(latesttxid, name, datahash, arbitratorfee, deposit, revision);
-							data.push_back(Pair("current_arbitrator_fee", arbitratorfee));
+							data.push_back(Pair("current_arbitrator_fee", (double)arbitratorfee/COIN));
 						}
 						break;
 					case 't':
 						result.push_back(Pair("proposal_type","contract_close"));
 						result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
 						GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, arbitratorfee, totaldeposit, datahash, dummytxid, name);
-						data.push_back(Pair("deposit_for_sender", deposit));
-						data.push_back(Pair("deposit_for_receiver", totaldeposit-deposit));
-						data.push_back(Pair("total_deposit", totaldeposit));
+						data.push_back(Pair("deposit_for_sender", (double)deposit/COIN));
+						data.push_back(Pair("deposit_for_receiver", (double)(totaldeposit-deposit)/COIN));
+						data.push_back(Pair("total_deposit", (double)totaldeposit/COIN));
 						break;
 				}
 				result.push_back(Pair("members",members));
@@ -2009,7 +2009,7 @@ UniValue AgreementInfo(uint256 txid)
 				GetAgreementUpdateData(latesttxid, name, datahash, arbitratorfee, deposit, revision);
 				data.push_back(Pair("revisions",revision));
 				if (bHasArbitrator)
-					data.push_back(Pair("arbitrator_fee",arbitratorfee));
+					data.push_back(Pair("arbitrator_fee",(double)arbitratorfee/COIN));
 				data.push_back(Pair("latest_name",name));
 				data.push_back(Pair("latest_data_hash",datahash.GetHex()));
 				result.push_back(Pair("data",data));
@@ -2024,7 +2024,7 @@ UniValue AgreementInfo(uint256 txid)
 				GetAgreementUpdateData(txid, name, datahash, arbitratorfee, deposit, revision);
 				data.push_back(Pair("revision",revision));
 				if (CPK_arbitrator.IsFullyValid())
-					data.push_back(Pair("arbitrator_fee",arbitratorfee));
+					data.push_back(Pair("arbitrator_fee",(double)arbitratorfee/COIN));
 				data.push_back(Pair("name",name));
 				data.push_back(Pair("data_hash",datahash.GetHex()));
 				result.push_back(Pair("data",data));
@@ -2040,9 +2040,9 @@ UniValue AgreementInfo(uint256 txid)
 				data.push_back(Pair("revision",revision));
 				data.push_back(Pair("name",name));
 				data.push_back(Pair("data_hash",datahash.GetHex()));
-				data.push_back(Pair("deposit_for_sender", deposit));
-				data.push_back(Pair("deposit_for_receiver", totaldeposit-deposit));
-				data.push_back(Pair("total_deposit", totaldeposit));
+				data.push_back(Pair("deposit_for_sender", (double)deposit/COIN));
+				data.push_back(Pair("deposit_for_receiver", (double)(totaldeposit-deposit)/COIN));
+				data.push_back(Pair("total_deposit", (double)totaldeposit/COIN));
 				result.push_back(Pair("data",data));
 				break;
 			case 'd':
@@ -2067,10 +2067,10 @@ UniValue AgreementInfo(uint256 txid)
 				deposit = CheckDepositUnlockCond(pawnshoptxid);
 				if (deposit > -1)
 				{
-					result.push_back(Pair("deposit_sent", deposit));
-					result.push_back(Pair("deposit_refunded", totaldeposit-deposit));
+					result.push_back(Pair("deposit_sent", (double)deposit/COIN));
+					result.push_back(Pair("deposit_refunded", (double)(totaldeposit-deposit)/COIN));
 				}
-				result.push_back(Pair("total_deposit", totaldeposit));
+				result.push_back(Pair("total_deposit", (double)totaldeposit/COIN));
 				break;
 		}
 		return(result);
