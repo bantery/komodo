@@ -236,7 +236,7 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be updated.\n"
-            "2. \"name\"        (string, required) New name of the proposed agreement. (max 64 characters)\n"
+            "2. \"name\"        (string, required) New name of the specified agreement. (max 64 characters)\n"
             "3. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                     a digital document or to reference a transaction in the blockchain.\n"
             "4. payment      (numeric, optional, default=0) If set, recipient will have to send this amount of funds to the sender in order to\n"
@@ -268,12 +268,12 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	name = params[1].get_str();
     if (name.size() == 0 || name.size() > 64) {
 		Unlock2NSPV(mypk);
-        throw runtime_error("Update request name must not be empty and up to 64 characters\n");
+        throw runtime_error("New agreement name must not be empty and up to 64 characters\n");
     }
     datahash = Parseuint256((char *)params[2].get_str().c_str());
 	if (datahash == zeroid) {
 		Unlock2NSPV(mypk);
-        throw runtime_error("Data hash empty or invalid\n");
+        throw runtime_error("New data hash empty or invalid\n");
     }
 	payment = 0;
 	if (params.size() >= 4) {
@@ -318,7 +318,7 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be closed.\n"
-            "2. \"name\"        (string, required) Name or info describing the reason for closure. (max 64 characters)\n"
+            "2. \"name\"        (string, required) New name of the specified agreement. (max 64 characters)\n"
             "3. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                     a digital document or to reference a transaction in the blockchain.\n"
             "4. depositcut   (numeric, optional, default=0) The amount taken from the deposit that will be sent to the sender if the\n"
@@ -348,12 +348,12 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 	name = params[1].get_str();
     if (name.size() == 0 || name.size() > 64) {
 		Unlock2NSPV(mypk);
-        throw runtime_error("Close request info must not be empty and up to 64 characters\n");
+        throw runtime_error("New agreement name must not be empty and up to 64 characters\n");
     }
     datahash = Parseuint256((char *)params[2].get_str().c_str());
 	if (datahash == zeroid) {
 		Unlock2NSPV(mypk);
-        throw runtime_error("Data hash empty or invalid\n");
+        throw runtime_error("New data hash empty or invalid\n");
     }
 	depositcut = 0;
 	if (params.size() >= 4) {

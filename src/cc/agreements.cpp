@@ -860,13 +860,13 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: decoding opret" << std::endl);
 	if (DecodeAgreementProposalOpRet(opret, version, proposaltype, srcpub, destpub, arbitratorpk, payment, arbitratorfee, depositval, datahash, agreementtxid, prevproposaltxid, name) != 'p')
 	{
-		CCerror = "proposal tx opret invalid or not a proposal tx!";
+		CCerror = "proposal transaction data invalid, or not a proposal transaction!";
 		return false;
 	}
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: check if name meets requirements (not empty, <= 64 chars)" << std::endl);
 	if (name.empty() || name.size() > 64)
 	{
-		CCerror = "proposal name empty or exceeds 64 chars!";
+		CCerror = "proposal name is empty or exceeds 64 characters!";
 		return false;
 	}
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: check if datahash meets requirements (not empty)" << std::endl);
@@ -878,7 +878,7 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: check if payment is positive" << std::endl);
 	if (payment < 0)
 	{
-		CCerror = "proposal has payment < 0!";
+		CCerror = "proposal has payment set to negative amount!";
 		return false;
 	}
 	CPK_src = pubkey2pk(srcpub);
@@ -889,17 +889,17 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: making sure srcpub != destpub != arbitratorpk" << std::endl);
 	if (bHasReceiver && CPK_src == CPK_dest)
 	{
-		CCerror = "proposal srcpub cannot be the same as destpub!";
+		CCerror = "proposal sender cannot be the same as receiver!";
 		return false;
 	}
 	if (bHasArbitrator && CPK_src == CPK_arbitrator)
 	{
-		CCerror = "proposal srcpub cannot be the same as arbitrator pubkey!";
+		CCerror = "proposal sender cannot be the same as arbitrator!";
 		return false;
 	}
 	if (bHasReceiver && bHasArbitrator && CPK_dest == CPK_arbitrator)
 	{
-		CCerror = "proposal destpub cannot be the same as arbitrator pubkey!";
+		CCerror = "proposal receiver cannot be the same as arbitrator!";
 		return false;
 	}
 	switch (proposaltype)
@@ -922,18 +922,18 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 				LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: refagreement was defined, check if it's a correct tx" << std::endl);
 				if (myGetTransaction(agreementtxid, agreementtx, hashBlock) == 0 || agreementtx.vout.size() <= 0)
 				{
-					CCerror = "proposal's refagreementtxid has nonexistent tx!";
+					CCerror = "proposal's reference agreement transaction doesn't exist!";
 					return false;
 				}
 				if (DecodeAgreementSigningOpRet(agreementtx.vout[agreementtx.vout.size() - 1].scriptPubKey, version, proposaltxid) != 'c')
 				{
-					CCerror = "proposal refagreement tx is not a contract signing tx!";
+					CCerror = "proposal reference agreement transaction is not a proposal signing transaction!";
 					return false;
 				}
 				LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: checking if subcontract's srcpub and destpub are members of the refagreement" << std::endl);
 				if (!GetAgreementInitialData(agreementtxid, proposaltxid, sellerpk, clientpk, ref_arbitratorpk, ref_arbitratorfee, depositval, datahash, refagreementtxid, name))
 				{
-					CCerror = "refagreement tx has invalid agreement member pubkeys!";
+					CCerror = "reference agreement transaction has invalid agreement members!";
 					return false;
 				}
 				LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: checking arbitrator fee" << std::endl);
@@ -944,7 +944,7 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 				}
 				if (!bHasReceiver || CPK_src != pubkey2pk(sellerpk) && CPK_src != pubkey2pk(clientpk) && CPK_dest != pubkey2pk(sellerpk) && CPK_dest != pubkey2pk(clientpk))
 				{
-					CCerror = "subcontracts must have at least one party that's a member in the refagreementtxid!";
+					CCerror = "subcontracts must have at least one party that's a member in the reference agreement!";
 					return false;
 				}
 			}
@@ -967,7 +967,7 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 			LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: checking if agreementtxid defined" << std::endl);
 			if (agreementtxid == zeroid)
 			{
-				CCerror = "proposal has no agreementtxid defined for update/termination proposal!";
+				CCerror = "proposal has no agreement defined for update/termination proposal!";
 				return false;
 			}
 			LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: agreementtxid status check" << std::endl);
@@ -986,12 +986,12 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 			}
 			else
 			{
-				CCerror = "proposal's agreementtxid name not found!";
+				CCerror = "proposal's agreement name not found!";
 				return false;
 			}
 			if (!GetAgreementInitialData(agreementtxid, proposaltxid, sellerpk, clientpk, ref_arbitratorpk, arbitratorfee, ref_depositval, datahash, refagreementtxid, name))
 			{
-				CCerror = "proposal agreement tx has invalid agreement data!";
+				CCerror = "proposal agreement transaction has invalid agreement data!";
 				return false;
 			}
 			LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: checking deposit value" << std::endl);
@@ -1003,7 +1003,7 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 			LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: checking if srcpub and destpub are members of the agreement" << std::endl);
 			if (CPK_src != pubkey2pk(sellerpk) && CPK_src != pubkey2pk(clientpk) || CPK_dest != pubkey2pk(sellerpk) && CPK_dest != pubkey2pk(clientpk))
 			{
-				CCerror = "proposal srcpub or destpub is not a member of the specified agreement!";
+				CCerror = "proposal sender or receiver is not a member of the specified agreement!";
 				return false;
 			}
 			LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: checking arbitrator" << std::endl);
@@ -1033,19 +1033,19 @@ bool CompareProposals(CScript proposalopret, uint256 refproposaltxid, std::strin
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "CompareProposals: decoding opret" << std::endl);
 	if (DecodeAgreementProposalOpRet(proposalopret, version, proposaltype, srcpub, destpub, arbitratorpk, payment, arbitratorfee, deposit, datahash, agreementtxid, prevproposaltxid, name) != 'p')
 	{
-		CCerror = "proposal tx opret invalid or not a proposal tx!";
+		CCerror = "proposal transaction data invalid or not a proposal transaction!";
 		return false;
 	}
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "CompareProposals: fetching refproposal tx" << std::endl);
 	if (myGetTransaction(refproposaltxid, refproposaltx, hashBlock) == 0 || refproposaltx.vout.size() <= 0)
 	{
-		CCerror = "couldn't find previous proposal tx!";;
+		CCerror = "couldn't find previous proposal transaction!";
 		return false;
 	}
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "CompareProposals: decoding refproposaltx opret" << std::endl);
 	if (DecodeAgreementProposalOpRet(refproposaltx.vout[refproposaltx.vout.size()-1].scriptPubKey, ref_version, ref_proposaltype, ref_srcpub, ref_destpub, ref_arbitratorpk, payment, arbitratorfee, deposit, datahash, ref_agreementtxid, ref_prevproposaltxid, name) != 'p')
 	{
-		CCerror = "previous proposal tx opret invalid or not a proposal tx!";
+		CCerror = "previous proposal transaction data invalid or not a proposal transaction!";
 		return false;
 	}
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "CompareProposals: checking if refproposaltxid = prevproposaltxid" << std::endl);
@@ -1086,7 +1086,7 @@ bool CompareProposals(CScript proposalopret, uint256 refproposaltxid, std::strin
 			}
 			break;
 		default:
-			CCerror = "proposals have invalid proposaltype!";
+			CCerror = "proposals have invalid proposal type!";
 			return false;
 	}
 	return true;
@@ -1138,8 +1138,8 @@ bool GetAgreementInitialData(uint256 agreementtxid, uint256 &proposaltxid, std::
 	}
 	return true;
 }
-// gets the latest update baton txid of a agreement
-// can be also used to check status of a agreement by looking at its funcid
+// gets the latest update baton txid of an agreement
+// can be also used to check status of an agreement by looking at its funcid
 bool GetLatestAgreementUpdate(uint256 agreementtxid, uint256 &latesttxid, uint8_t &funcid)
 {
 	int32_t vini, height, retcode;
@@ -1331,7 +1331,7 @@ UniValue AgreementCreate(const CPubKey& pk, uint64_t txfee, std::string name, ui
 			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, mypk)); // vout.1 response hook (no destpub)
 		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
 	}
-	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs");
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 }
 // agreementupdate - constructs a 'p' transaction, with the 'u' proposal type
 // This transaction will only be validated if agreementtxid is specified. prevproposaltxid can be used to amend previous update requests.
@@ -1374,7 +1374,7 @@ UniValue AgreementUpdate(const CPubKey& pk, uint64_t txfee, uint256 agreementtxi
 	if (prevproposaltxid != zeroid)
 	{
 		if (myGetTransaction(prevproposaltxid,prevproposaltx,hashBlock)==0 || (numvouts=prevproposaltx.vout.size())<=0)
-			CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "cant find specified previous proposal txid " << prevproposaltxid.GetHex());
+			CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "can't find specified previous proposal txid " << prevproposaltxid.GetHex());
 		DecodeAgreementProposalOpRet(prevproposaltx.vout[numvouts-1].scriptPubKey,dummychar,dummychar,ref_srcpub,ref_destpub,dummypk,dummyamount,dummyamount,dummyamount,dummytxid,dummytxid,dummytxid,dummystr);
 		if (IsProposalSpent(prevproposaltxid, spendingtxid, spendingfuncid))
 		{
@@ -1407,7 +1407,7 @@ UniValue AgreementUpdate(const CPubKey& pk, uint64_t txfee, uint256 agreementtxi
 		mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, mypk, pubkey2pk(destpub))); // vout.1 response hook
 		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
 	}
-	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs");
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 }
 // agreementclose - constructs a 'p' transaction, with the 't' proposal type
 // This transaction will only be validated if agreementtxid is specified. prevproposaltxid can be used to amend previous cancel requests.
@@ -1484,7 +1484,7 @@ UniValue AgreementClose(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid
 		mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, mypk, pubkey2pk(destpub))); // vout.1 response hook
 		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
 	}
-	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs");
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 }
 // agreementstopproposal - constructs a 't' transaction and spends the specified 'p' transaction
 // can be done by the proposal initiator, as well as the receiver if they are able to accept the proposal.
@@ -1507,7 +1507,7 @@ UniValue AgreementStopProposal(const CPubKey& pk, uint64_t txfee, uint256 propos
 	if (myGetTransaction(proposaltxid, proposaltx, hashBlock) == 0 || (numvouts = proposaltx.vout.size()) <= 0)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "cant find specified proposal txid " << proposaltxid.GetHex());
 	if (DecodeAgreementProposalOpRet(proposaltx.vout[numvouts-1].scriptPubKey,version,proposaltype,srcpub,destpub,dummypk,dummyamount,dummyamount,dummyamount,dummytxid,refagreementtxid,dummytxid,dummystr) != 'p')
-		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "specified txid has incorrect proposal opret");
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "specified txid has incorrect proposal data");
 	if (IsProposalSpent(proposaltxid, spendingtxid, spendingfuncid))
 	{
 		switch (spendingfuncid)
@@ -1545,7 +1545,7 @@ UniValue AgreementStopProposal(const CPubKey& pk, uint64_t txfee, uint256 propos
 				CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "you are not the source or receiver of specified proposal");
 			break;
 		default:
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "invalid proposaltype in proposal tx opret");
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "invalid proposal type in proposal transaction data");
 	}
 	if (AddNormalinputs2(mtx, txfee, 5) > 0)
 	{
@@ -1560,7 +1560,7 @@ UniValue AgreementStopProposal(const CPubKey& pk, uint64_t txfee, uint256 propos
 			mtx.vin.push_back(CTxIn(proposaltxid,1,CScript())); // vin.1 previous proposal CC response hook (1of1 addr version)
 		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,EncodeAgreementProposalCloseOpRet(AGREEMENTCC_VERSION,proposaltxid,std::vector<uint8_t>(mypk.begin(),mypk.end())));
 	}
-	CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs");
+	CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 }
 // agreementaccept - spend a 'p' transaction that was submitted by the other party.
 // this function is context aware and does different things dependent on the proposal type:
@@ -1584,11 +1584,11 @@ UniValue AgreementAccept(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid
 	if (txfee == 0) txfee = CC_TXFEE;
 	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
 	if (myGetTransaction(proposaltxid, proposaltx, hashBlock) == 0 || (numvouts = proposaltx.vout.size()) <= 0)
-		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "cant find specified proposal txid " << proposaltxid.GetHex());
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "can't find specified proposal txid " << proposaltxid.GetHex());
 	if (!ValidateProposalOpRet(proposaltx.vout[numvouts-1].scriptPubKey, CCerror))
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << CCerror);
 	if (DecodeAgreementProposalOpRet(proposaltx.vout[numvouts-1].scriptPubKey,version,proposaltype,srcpub,destpub,arbitrator,payment,arbitratorfee,deposit,datahash,agreementtxid,prevproposaltxid,name) != 'p')
-		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "specified txid has incorrect proposal opret");
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "specified txid has incorrect proposal data");
 	if (IsProposalSpent(proposaltxid, spendingtxid, spendingfuncid))
 	{
 		switch (spendingfuncid)
@@ -1632,7 +1632,7 @@ UniValue AgreementAccept(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid
 					mtx.vout.push_back(CTxOut(payment, CScript() << ParseHex(HexStr(CPK_src)) << OP_CHECKSIG)); // vout.3 payment (optional)
 				return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,EncodeAgreementSigningOpRet(AGREEMENTCC_VERSION, proposaltxid));
 			}
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs");
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 		case 'u':
 			GetLatestAgreementUpdate(agreementtxid, latesttxid, updatefuncid);
 			// constructing a 'u' transaction
@@ -1652,7 +1652,7 @@ UniValue AgreementAccept(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid
 					mtx.vout.push_back(CTxOut(payment, CScript() << ParseHex(HexStr(CPK_src)) << OP_CHECKSIG)); // vout.1 payment (optional)
 				return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,EncodeAgreementUpdateOpRet(AGREEMENTCC_VERSION, agreementtxid, proposaltxid));
 			}
-			CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs");
+			CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 		case 't':
 			GetLatestAgreementUpdate(agreementtxid, latesttxid, updatefuncid);
 			// constructing a 's' transaction
@@ -1673,7 +1673,7 @@ UniValue AgreementAccept(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid
 					mtx.vout.push_back(CTxOut(payment, CScript() << ParseHex(HexStr(CPK_src)) << OP_CHECKSIG)); // vout.1 payment (optional)
 				return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,EncodeAgreementCloseOpRet(AGREEMENTCC_VERSION, agreementtxid, proposaltxid));
 			}
-			CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs");
+			CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 		default:
 			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "invalid proposal type for proposal txid " << proposaltxid.GetHex());
 	}
@@ -1854,7 +1854,7 @@ UniValue AgreementUnlock(const CPubKey& pk, uint64_t txfee, uint256 agreementtxi
 		}
 		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,EncodeAgreementUnlockOpRet(AGREEMENTCC_VERSION, agreementtxid, pawnshoptxid));
 	}
-	CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs");
+	CCERR_RESULT("agreementscc",CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
 }
 //===========================================================================
 // RPCs - informational
