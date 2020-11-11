@@ -271,7 +271,7 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 		Unlock2NSPV(mypk);
         throw runtime_error("New data hash empty or invalid\n");
     }
-    name = ""
+    name = "";
     if (params.size() >= 3) {
 		name = params[2].get_str();
         if (name.size() > 64) {
@@ -355,7 +355,7 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 		Unlock2NSPV(mypk);
         throw runtime_error("New data hash empty or invalid\n");
     }
-    name = ""
+    name = "";
     if (params.size() >= 3) {
 		name = params[2].get_str();
         if (name.size() > 64) {
