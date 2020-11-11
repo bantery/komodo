@@ -17,7 +17,7 @@
 #include "CCPawnshop.h"
 
 //===========================================================================
-// Opret encoders/decoders
+// Decoders for all CScript data objects found in Agreements CC
 //===========================================================================
 uint8_t DecodeAgreementOpRet(const CScript scriptPubKey)
 {
@@ -194,18 +194,26 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 	uint32_t pawnshopflags;
 	char globaladdr[65], srcaddr[65], destaddr[65], arbitratoraddr[65], pawnshopaddr[65];
 	CPubKey CPK_src, CPK_dest, CPK_arbitrator, CPK_signer, CPK_rewarded, tokensupplier, coinsupplier;
+
+	// Also define Pawnshop CCcontract_info and variables for Pawnshop compatibility.
 	struct CCcontract_info *cpPawnshop, CPawnshop;
 	cpPawnshop = CCinit(&CPawnshop, EVAL_PAWNSHOP);
 	std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
+
 	numvins = tx.vin.size();
 	numvouts = tx.vout.size();
+
 	if (numvouts < 1)
 		return eval->Invalid("no vouts");
+
 	CCOpretCheck(eval,tx,true,true,true);
 	ExactAmounts(eval,tx,ASSETCHAINS_CCZEROTXFEE[EVAL_AGREEMENTS]?0:CC_TXFEE);
+
 	if ((funcid = DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey)) != 0)
 	{
+		// Getting Agreements global CC address and storing it in globaladdr.
 		GetCCaddress(cp, globaladdr, GetUnspendable(cp, NULL));
+
 		switch (funcid)
 		{
 			case 'p':
@@ -283,7 +291,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				if (myGetTransaction(proposaltxid, proposaltx, hashBlock) == 0 || proposaltx.vout.size() <= 0)
 					return eval->Invalid("couldn't find proposaltx for 't' tx!");
 				if (IsProposalSpent(proposaltxid, spendingtxid, spendingfuncid))
-					return eval->Invalid("prevproposal has already been spent!");
+					return eval->Invalid("proposal has already been spent!");
 				// Retrieving the proposal data tied to this transaction.
 				DecodeAgreementProposalOpRet(proposaltx.vout[proposaltx.vout.size()-1].scriptPubKey, version, proposaltype, srcpub, destpub, arbitratorpk, payment, arbitratorfee, depositval, dummytxid, agreementtxid, prevproposaltxid, name);
 				CPK_src = pubkey2pk(srcpub);
@@ -292,7 +300,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				bHasReceiver = CPK_dest.IsValid();
 				if (TotalPubkeyNormalInputs(tx, CPK_signer) == 0 && TotalPubkeyCCInputs(tx, CPK_signer) == 0)
 					return eval->Invalid("found no normal or cc inputs signed by signer pubkey!");
-				// We won't be using ValidateProposalOpRet here, since we only care about sender and receiver, and even if the other data in the proposal is invalid the proposal will be closed anyway
+				// We won't be using ValidateProposalOpRet here, since we only care about sender and receiver, and even if the other data in the proposal is invalid the proposal will be closed anyway.
 				// Instead we'll just check if the source pubkey of this tx is allowed to close the proposal.
 				switch (proposaltype)
 				{
@@ -362,7 +370,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				if (!bHasReceiver)
 					return eval->Invalid("proposal doesn't have valid destpub!");
 				if (IsProposalSpent(proposaltxid, spendingtxid, spendingfuncid))
-					return eval->Invalid("prevproposal has already been spent!");
+					return eval->Invalid("proposal has already been spent!");
 				// Check pubkeys.
 				myGetTransaction(proposaltxid, proposaltx, hashBlock);
 				if (TotalPubkeyNormalInputs(proposaltx, CPK_src) == 0 && TotalPubkeyCCInputs(proposaltx, CPK_src) == 0)
@@ -430,7 +438,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				if (!bHasReceiver)
 					return eval->Invalid("proposal doesn't have valid destpub!");
 				if (IsProposalSpent(proposaltxid, spendingtxid, spendingfuncid))
-					return eval->Invalid("prevproposal has already been spent!");
+					return eval->Invalid("proposal has already been spent!");
 				// Check pubkeys.
 				myGetTransaction(proposaltxid, proposaltx, hashBlock);
 				if (TotalPubkeyNormalInputs(proposaltx, CPK_src) == 0 && TotalPubkeyCCInputs(proposaltx, CPK_src) == 0)
@@ -513,7 +521,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				if (!bHasReceiver)
 					return eval->Invalid("proposal doesn't have valid destpub!");
 				if (IsProposalSpent(proposaltxid, spendingtxid, spendingfuncid))
-					return eval->Invalid("prevproposal has already been spent!");
+					return eval->Invalid("proposal has already been spent!");
 				// Check pubkeys.
 				myGetTransaction(proposaltxid, proposaltx, hashBlock);
 				if (TotalPubkeyNormalInputs(proposaltx, CPK_src) == 0 && TotalPubkeyCCInputs(proposaltx, CPK_src) == 0)
