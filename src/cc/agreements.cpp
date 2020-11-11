@@ -1171,8 +1171,8 @@ bool GetLatestAgreementUpdate(uint256 agreementtxid, uint256 &latesttxid, uint8_
 	}
 	sourcetxid = batontxid;
 	// baton vout should be vout0 from now on
-	while ((retcode = CCgetspenttxid(batontxid, vini, height, sourcetxid, 0)) == 0 && myGetTransaction(batontxid, batontx, hashBlock) && batontx.vout.size() > 0 &&
-	DecodeAgreementOpRet(batontx.vout[batontx.vout.size() - 1].scriptPubKey) != 0)
+	while ((retcode = CCgetspenttxid(batontxid, vini, height, sourcetxid, 0)) == 0 && myGetTransaction(batontxid, batontx, hashBlock) && 
+	!(KOMODO_NSPV_FULLNODE && hashBlock.IsNull()) && batontx.vout.size() > 0 && DecodeAgreementOpRet(batontx.vout[batontx.vout.size() - 1].scriptPubKey) != 0)
 	{
 		funcid = DecodeAgreementOpRet(batontx.vout[batontx.vout.size() - 1].scriptPubKey);
 		switch (funcid)
@@ -1889,6 +1889,10 @@ UniValue AgreementInfo(uint256 txid)
 	if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
 	(funcid = DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey)) != 0)
 	{
+		// Only show info for confirmed transactions.
+		if (KOMODO_NSPV_FULLNODE && hashBlock.IsNull())
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "the transaction is still in mempool");
+		
 		result.push_back(Pair("result", "success"));
 		result.push_back(Pair("txid", txid.GetHex()));
 		switch (funcid)
