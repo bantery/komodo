@@ -863,10 +863,10 @@ bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 		CCerror = "proposal transaction data invalid, or not a proposal transaction!";
 		return false;
 	}
-	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: check if name meets requirements (not empty, <= 64 chars)" << std::endl);
-	if (name.empty() || name.size() > 64)
+	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: check if name meets requirements (<= 64 chars)" << std::endl);
+	if (name.size() > 64)
 	{
-		CCerror = "proposal name is empty or exceeds 64 characters!";
+		CCerror = "proposal name exceeds 64 characters!";
 		return false;
 	}
 	LOGSTREAM("agreements", CCLOG_INFO, stream << "ValidateProposalOpRet: check if datahash meets requirements (not empty)" << std::endl);
@@ -1456,7 +1456,7 @@ UniValue AgreementClose(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid
 	{
 		name = latestname;
 	}
-	
+
 	// additional checks are done using ValidateProposalOpRet
 	CScript opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,'t',std::vector<uint8_t>(mypk.begin(),mypk.end()),destpub,arbitratorpk,payment,CC_MARKER_VALUE,depositcut,datahash,agreementtxid,prevproposaltxid,name);
 	if (!ValidateProposalOpRet(opret, CCerror))
