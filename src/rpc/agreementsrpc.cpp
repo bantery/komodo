@@ -230,15 +230,16 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	int64_t payment, arbitratorfee;
     if (fHelp || params.size() < 3 || params.size() > 6)
         throw runtime_error(
-            "agreementupdate agreementtxid \"name\" datahash ( payment prevproposaltxid arbitratorfee )\n"
+            "agreementupdate agreementtxid \"newname\" datahash ( payment prevproposaltxid arbitratorfee )\n"
             "\nCreate an agreement update proposal transaction and return the raw hex. The agreement will be updated once this proposal is\n"
             "accepted by the owner of the designated recipient pubkey.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be updated.\n"
-            "2. \"name\"        (string, required) New name of the specified agreement. (max 64 characters)\n"
-            "3. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
+            "2. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                     a digital document or to reference a transaction in the blockchain.\n"
+            "3. \"newname\"     (string, optional) New name of the specified agreement. (max 64 characters)\n"
+            "                                     If unspecified, will inherit latest contract name.\n"
             "4. payment      (numeric, optional, default=0) If set, recipient will have to send this amount of funds to the sender in order to\n"
             "                                                  accept this proposal successfully.\n"
             "5. prevproposaltxid (uint256, optional) Transaction id of a previous open proposal to update an agreement by the same\n"
@@ -265,15 +266,18 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 		Unlock2NSPV(mypk);
         throw runtime_error("Agreement id invalid\n");
     }
-	name = params[1].get_str();
-    if (name.size() == 0 || name.size() > 64) {
-		Unlock2NSPV(mypk);
-        throw runtime_error("New agreement name must not be empty and up to 64 characters\n");
-    }
-    datahash = Parseuint256((char *)params[2].get_str().c_str());
+    datahash = Parseuint256((char *)params[1].get_str().c_str());
 	if (datahash == zeroid) {
 		Unlock2NSPV(mypk);
         throw runtime_error("New data hash empty or invalid\n");
+    }
+    name = ""
+    if (params.size() >= 3) {
+		name = params[2].get_str();
+        if (name.size() > 64) {
+            Unlock2NSPV(mypk);
+            throw runtime_error("New agreement name must not be empty and up to 64 characters\n");
+        }
     }
 	payment = 0;
 	if (params.size() >= 4) {
@@ -312,15 +316,16 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 	int64_t payment, depositcut;
     if (fHelp || params.size() < 3 || params.size() > 6)
         throw runtime_error(
-            "agreementclose agreementtxid \"name\" datahash ( depositcut payment prevproposaltxid )\n"
+            "agreementclose agreementtxid datahash ( \"newname\" depositcut payment prevproposaltxid )\n"
             "\nCreate an agreement closure proposal transaction and return the raw hex. The agreement will be closed once this proposal is\n"
             "accepted by the owner of the designated recipient pubkey.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be closed.\n"
-            "2. \"name\"        (string, required) New name of the specified agreement. (max 64 characters)\n"
-            "3. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
+            "2. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                     a digital document or to reference a transaction in the blockchain.\n"
+            "3. \"newname\"     (string, optional) New name of the specified agreement. (max 64 characters)\n"
+            "                                     If unspecified, will inherit latest contract name.\n"
             "4. depositcut   (numeric, optional, default=0) The amount taken from the deposit that will be sent to the sender if the\n"
             "                                               agreement is closed. The rest of the deposit will be given to the recipient.\n"
             "5. payment      (numeric, optional, default=0) If set, recipient will have to send this amount of funds to the sender in order to\n"
@@ -345,15 +350,18 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 		Unlock2NSPV(mypk);
         throw runtime_error("Agreement id invalid\n");
     }
-	name = params[1].get_str();
-    if (name.size() == 0 || name.size() > 64) {
-		Unlock2NSPV(mypk);
-        throw runtime_error("New agreement name must not be empty and up to 64 characters\n");
-    }
-    datahash = Parseuint256((char *)params[2].get_str().c_str());
+	datahash = Parseuint256((char *)params[1].get_str().c_str());
 	if (datahash == zeroid) {
 		Unlock2NSPV(mypk);
         throw runtime_error("New data hash empty or invalid\n");
+    }
+    name = ""
+    if (params.size() >= 3) {
+		name = params[2].get_str();
+        if (name.size() > 64) {
+            Unlock2NSPV(mypk);
+            throw runtime_error("New agreement name must not be empty and up to 64 characters\n");
+        }
     }
 	depositcut = 0;
 	if (params.size() >= 4) {
