@@ -1106,9 +1106,11 @@ bool IsProposalSpent(uint256 proposaltxid, uint256 &spendingtxid, uint8_t &spend
 	int32_t vini, height, retcode;
 	uint256 hashBlock;
 	CTransaction proposaltx, spendingtx;
-	if ((retcode = CCgetspenttxid(spendingtxid, vini, height, proposaltxid, 1)) == 0)
+	if ((retcode = CCgetspenttxid(spendingtxid, vini, height, proposaltxid, 1)) == 0 && 
+		myGetTransaction(spendingtxid, spendingtx, hashBlock) != 0 && 
+		spendingtx.vout.size() > 0)
 	{
-		if (myGetTransaction(spendingtxid, spendingtx, hashBlock) != 0 && spendingtx.vout.size() > 0)
+		if (DecodeAgreementOpRet(spendingtx.vout[spendingtx.vout.size() - 1].scriptPubKey))
 			spendingfuncid = DecodeAgreementOpRet(spendingtx.vout[spendingtx.vout.size() - 1].scriptPubKey);
 			// if 'c' or 'u' or 's', proposal was accepted
 			// if 'p', proposal was amended with another proposal
