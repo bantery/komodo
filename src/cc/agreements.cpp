@@ -854,6 +854,7 @@ bool GetAcceptedProposalOpRet(CTransaction tx, uint256 &proposaltxid, CScript &o
 	return true;
 }
 
+// Function for validating the proposal transaction data object. Used in both the validation code and RPCs.
 bool ValidateProposalOpRet(CScript opret, std::string &CCerror)
 {
 	CTransaction agreementtx;

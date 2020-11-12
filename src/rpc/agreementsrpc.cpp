@@ -228,7 +228,7 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	uint256 contracthash, prevproposaltxid, agreementtxid;
 	std::string name;
 	int64_t payment, disputefee;
-    if (fHelp || params.size() < 3 || params.size() > 6)
+    if (fHelp || params.size() < 2 || params.size() > 6)
         throw runtime_error(
             "agreementupdate agreementtxid contracthash ( \"contractname\" payment prevproposaltxid disputefee )\n"
             "\nCreate an agreement update proposal transaction and return the raw hex. The agreement will be updated once this proposal is\n"
@@ -314,7 +314,7 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 	uint256 contracthash, prevproposaltxid, agreementtxid;
 	std::string name;
 	int64_t payment, depositcut;
-    if (fHelp || params.size() < 3 || params.size() > 6)
+    if (fHelp || params.size() < 2 || params.size() > 6)
         throw runtime_error(
             "agreementclose agreementtxid contracthash ( \"contractname\" depositcut payment prevproposaltxid )\n"
             "\nCreate an agreement closure proposal transaction and return the raw hex. The agreement will be closed once this proposal is\n"
