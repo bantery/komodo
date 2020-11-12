@@ -49,23 +49,23 @@ UniValue agreementaddress(const UniValue& params, bool fHelp, const CPubKey& myp
 UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     UniValue result(UniValue::VOBJ);
-	uint256 datahash, prevproposaltxid, refagreementtxid;
+	uint256 contracthash, prevproposaltxid, refagreementtxid;
 	std::string name;
-	int64_t payment, arbitratorfee, deposit;
+	int64_t payment, disputefee, deposit;
     if (fHelp || params.size() < 4 || params.size() > 9)
         throw runtime_error(
-            "agreementcreate \"name\" datahash \"client\" \"arbitrator\" ( arbitratorfee payment deposit prevproposaltxid refagreementtxid )\n"
+            "agreementcreate \"contractname\" contracthash \"client\" \"arbitrator\" ( disputefee payment deposit prevproposaltxid refagreementtxid )\n"
             "\nCreate a new agreement proposal transaction and return the raw hex. The agreement will be fully set up once this proposal is\n"
             "accepted by the owner of the designated recipient pubkey.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
-            "1. \"name\"        (string, required) Name of the proposed agreement. (max 64 characters)\n"
-            "2. datahash     (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
+            "1. \"contractname\"  (string, required) Name of the proposed agreement. (max 64 characters)\n"
+            "2. contracthash (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                    a digital document or to reference a transaction in the blockchain.\n"
             "3. \"client\"      (string, required) Pubkey of proposal's intended recipient. If set to \"\" or 0, a proposal draft will be created.\n"
             "4. \"arbitrator\"  (string, required) Pubkey of proposed arbitrator for the agreement. If set to \"\" or 0, the agreement will have no\n"
             "                                    arbitrator.\n"
-            "5. arbitratorfee   (numeric, optional, default=0) Fee that will be required to allocate to the arbitrator in order to create a dispute\n"
+            "5. disputefee   (numeric, optional, default=0) Fee that will be required to allocate to the arbitrator in order to create a dispute\n"
             "                                                  for the proposed agreement. If no arbitrator is set, always resets to 0, otherwise must\n"
             "                                                  be set to at least 10000 satoshis.\n"
             "6. payment         (numeric, optional, default=0) If set, recipient will have to send this amount of funds to the sender in order to\n"
@@ -97,23 +97,23 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 		Unlock2NSPV(mypk);
         throw runtime_error("Agreement name must not be empty and up to 64 characters\n");
     }
-    datahash = Parseuint256((char *)params[1].get_str().c_str());
-	if (datahash == zeroid)
+    contracthash = Parseuint256((char *)params[1].get_str().c_str());
+	if (contracthash == zeroid)
     {
 		Unlock2NSPV(mypk);
         throw runtime_error("Data hash empty or invalid\n");
     }
 	std::vector<unsigned char> client(ParseHex(params[2].get_str().c_str()));
 	std::vector<unsigned char> arbitrator(ParseHex(params[3].get_str().c_str()));
-    arbitratorfee = 0;
+    disputefee = 0;
 	if (params.size() >= 5)
     {
-		//arbitratorfee = atoll(params[4].get_str().c_str());
-        arbitratorfee = AmountFromValue(params[4]);
-        if (arbitratorfee != 0 && arbitratorfee < 10000)
+		//disputefee = atoll(params[4].get_str().c_str());
+        disputefee = AmountFromValue(params[4]);
+        if (disputefee != 0 && disputefee < 10000)
         {
 			Unlock2NSPV(mypk);
-			throw runtime_error("Arbitrator fee too low\n");
+			throw runtime_error("Dispute fee too low\n");
 		}
     }
 	payment = 0;
@@ -143,7 +143,7 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
         prevproposaltxid = Parseuint256((char *)params[7].get_str().c_str());
 	if (params.size() == 9)
         refagreementtxid = Parseuint256((char *)params[8].get_str().c_str());
-	result = AgreementCreate(mypk, 0, name, datahash, client, arbitrator, payment, arbitratorfee, deposit, prevproposaltxid, refagreementtxid);
+	result = AgreementCreate(mypk, 0, name, contracthash, client, arbitrator, payment, disputefee, deposit, prevproposaltxid, refagreementtxid);
     if (result[JSON_HEXTX].getValStr().size() > 0)
         result.push_back(Pair("result", "success"));
     Unlock2NSPV(mypk);
@@ -225,26 +225,26 @@ UniValue agreementaccept(const UniValue& params, bool fHelp, const CPubKey& mypk
 UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     UniValue result(UniValue::VOBJ);
-	uint256 datahash, prevproposaltxid, agreementtxid;
+	uint256 contracthash, prevproposaltxid, agreementtxid;
 	std::string name;
-	int64_t payment, arbitratorfee;
+	int64_t payment, disputefee;
     if (fHelp || params.size() < 3 || params.size() > 6)
         throw runtime_error(
-            "agreementupdate agreementtxid datahash ( \"newname\" payment prevproposaltxid arbitratorfee )\n"
+            "agreementupdate agreementtxid contracthash ( \"contractname\" payment prevproposaltxid disputefee )\n"
             "\nCreate an agreement update proposal transaction and return the raw hex. The agreement will be updated once this proposal is\n"
             "accepted by the owner of the designated recipient pubkey.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be updated.\n"
-            "2. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
+            "2. contracthash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                     a digital document or to reference a transaction in the blockchain.\n"
-            "3. \"newname\"     (string, optional) New name for the specified agreement. (max 64 characters)\n"
+            "3. \"contractname\"     (string, optional) New name for the specified agreement. (max 64 characters)\n"
             "                                    If unspecified, will inherit latest contract name (aka contract name will be unchanged).\n"
             "4. payment      (numeric, optional, default=0) If set, recipient will have to send this amount of funds to the sender in order to\n"
             "                                                  accept this proposal successfully.\n"
             "5. prevproposaltxid (uint256, optional) Transaction id of a previous open proposal to update an agreement by the same\n"
             "                                        sender pubkey. If set, this proposal will supersede the one specified here.\n"
-            "6. arbitratorfee   (numeric, optional, default=0) If set, this will be the new fee that will be required to allocate to the\n"
+            "6. disputefee   (numeric, optional, default=0) If set, this will be the new fee that will be required to allocate to the\n"
             "                                                  arbitrator in order to create a dispute for the proposed agreement. If no\n"
             "                                                  arbitrator is set, always resets to 0, otherwise is set to the current arbitrator\n"
             "                                                  fee unless another amount is defined here (must be at least 10000 satoshis)."
@@ -266,8 +266,8 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 		Unlock2NSPV(mypk);
         throw runtime_error("Agreement id invalid\n");
     }
-    datahash = Parseuint256((char *)params[1].get_str().c_str());
-	if (datahash == zeroid) {
+    contracthash = Parseuint256((char *)params[1].get_str().c_str());
+	if (contracthash == zeroid) {
 		Unlock2NSPV(mypk);
         throw runtime_error("New data hash empty or invalid\n");
     }
@@ -292,16 +292,16 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	if (params.size() >= 5) {
         prevproposaltxid = Parseuint256((char *)params[4].get_str().c_str());
     }
-	arbitratorfee = 0;
+	disputefee = 0;
 	if (params.size() == 6) {
-		//arbitratorfee = atoll(params[5].get_str().c_str());
-        arbitratorfee = AmountFromValue(params[5]);
-        if (arbitratorfee != 0 && arbitratorfee < 10000) {
+		//disputefee = atoll(params[5].get_str().c_str());
+        disputefee = AmountFromValue(params[5]);
+        if (disputefee != 0 && disputefee < 10000) {
 			Unlock2NSPV(mypk);
-			throw runtime_error("Arbitrator fee too low\n");
+			throw runtime_error("Dispute fee too low\n");
 		}
     }
-	result = AgreementUpdate(mypk, 0, agreementtxid, name, datahash, payment, prevproposaltxid, arbitratorfee);
+	result = AgreementUpdate(mypk, 0, agreementtxid, name, contracthash, payment, prevproposaltxid, disputefee);
     if (result[JSON_HEXTX].getValStr().size() > 0)
         result.push_back(Pair("result", "success"));
     Unlock2NSPV(mypk);
@@ -311,20 +311,20 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     UniValue result(UniValue::VOBJ);
-	uint256 datahash, prevproposaltxid, agreementtxid;
+	uint256 contracthash, prevproposaltxid, agreementtxid;
 	std::string name;
 	int64_t payment, depositcut;
     if (fHelp || params.size() < 3 || params.size() > 6)
         throw runtime_error(
-            "agreementclose agreementtxid datahash ( \"newname\" depositcut payment prevproposaltxid )\n"
+            "agreementclose agreementtxid contracthash ( \"contractname\" depositcut payment prevproposaltxid )\n"
             "\nCreate an agreement closure proposal transaction and return the raw hex. The agreement will be closed once this proposal is\n"
             "accepted by the owner of the designated recipient pubkey.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be closed.\n"
-            "2. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
+            "2. contracthash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                     a digital document or to reference a transaction in the blockchain.\n"
-            "3. \"newname\"     (string, optional) New name for the specified agreement. (max 64 characters)\n"
+            "3. \"contractname\"     (string, optional) New name for the specified agreement. (max 64 characters)\n"
             "                                    If unspecified, will inherit latest contract name (aka contract name will be unchanged).\n"
             "4. depositcut   (numeric, optional, default=0) The amount taken from the deposit that will be sent to the sender if the\n"
             "                                               agreement is closed. The rest of the deposit will be given to the recipient.\n"
@@ -350,8 +350,8 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 		Unlock2NSPV(mypk);
         throw runtime_error("Agreement id invalid\n");
     }
-	datahash = Parseuint256((char *)params[1].get_str().c_str());
-	if (datahash == zeroid) {
+	contracthash = Parseuint256((char *)params[1].get_str().c_str());
+	if (contracthash == zeroid) {
 		Unlock2NSPV(mypk);
         throw runtime_error("New data hash empty or invalid\n");
     }
@@ -385,7 +385,7 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 	if (params.size() >= 6) {
         prevproposaltxid = Parseuint256((char *)params[5].get_str().c_str());
     }
-	result = AgreementClose(mypk, 0, agreementtxid, name, datahash, depositcut, payment, prevproposaltxid);
+	result = AgreementClose(mypk, 0, agreementtxid, name, contracthash, depositcut, payment, prevproposaltxid);
     if (result[JSON_HEXTX].getValStr().size() > 0)
         result.push_back(Pair("result", "success"));
     Unlock2NSPV(mypk);
@@ -395,16 +395,16 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 UniValue agreementdispute(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     UniValue result(UniValue::VOBJ);
-	uint256 datahash, agreementtxid;
+	uint256 contracthash, agreementtxid;
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "agreementdispute agreementtxid datahash\n"
+            "agreementdispute agreementtxid contracthash\n"
             "\nCreate an agreement dispute transaction and return the raw hex. This transaction will cost the sender a fee equal to\n"
-            "the latest arbitrator fee defined for the agreement. Only available if the agreement has an arbitrator.\n"
+            "the latest dispute fee defined for the agreement. Only available if the agreement has an arbitrator.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. agreementtxid (uint256, required) Transaction id of the agreement to be disputed.\n"
-            "2. datahash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
+            "2. contracthash      (uint256, required) Field for arbitrary SHA256 hash, can be used to store a fingerprint of\n"
             "                                     a digital document or to reference a transaction in the blockchain.\n"
             "\nResult:\n"
             "\"result\"  (string) Whether this RPC was executed successfully.\n"
@@ -422,12 +422,12 @@ UniValue agreementdispute(const UniValue& params, bool fHelp, const CPubKey& myp
 		Unlock2NSPV(mypk);
         throw runtime_error("Agreement id invalid\n");
     }
-    datahash = Parseuint256((char *)params[1].get_str().c_str());
-	if (datahash == zeroid) {
+    contracthash = Parseuint256((char *)params[1].get_str().c_str());
+	if (contracthash == zeroid) {
 		Unlock2NSPV(mypk);
         throw runtime_error("Data hash empty or invalid\n");
     }
-	result = AgreementDispute(mypk, 0, agreementtxid, datahash);
+	result = AgreementDispute(mypk, 0, agreementtxid, contracthash);
     if (result[JSON_HEXTX].getValStr().size() > 0)
         result.push_back(Pair("result", "success"));
     Unlock2NSPV(mypk);
@@ -442,7 +442,7 @@ UniValue agreementresolve(const UniValue& params, bool fHelp, const CPubKey& myp
         throw runtime_error(
             "agreementresolve agreementtxid \"rewardedpubkey\"\n"
             "\nCreate an agreement dispute resolution transaction and return the raw hex. Only available to the arbitrator\n"
-            "of the agreement. Sends the deposit to the chosen pubkey and retrieves the arbitrator fee from the dispute\n"
+            "of the agreement. Sends the deposit to the chosen pubkey and retrieves the dispute fee from the dispute\n"
             "transaction, sending it to the arbitrator's wallet. This transaction will permanently close the agreement.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
