@@ -29,6 +29,7 @@ which will need to execute the agreementaccept RPC and sign the proposal.
 #define AGREEMENTCC_VERSION 1
 #define CC_TXFEE 10000
 #define CC_MARKER_VALUE 10000
+#define CC_RESPONSE_VALUE 50000
 
 /// Decodes op_return data marked with EVAL_AGREEMENTS using a decoder function corresponding to the found function id.
 /// @param scriptPubKey op_return data object
