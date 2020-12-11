@@ -13,14 +13,6 @@
  *                                                                            *
  ******************************************************************************/
 
-/*
-The Agreements CC enables anyone to create a blockchain representation of a bilateral agreement.
-An agreement created using this CC features, among other things, the ability to store the checksum of off-chain contract documents (or an oracletxid) to prevent tampering, 
-a two party approval protocol for actions such as updates, terminations, and a dispute resolution system which utilizes an arbitrator, a mutually agreed upon third party.
-To create an active contract between two parties, the seller must first use the agreementcreate RPC to create a proposal and designate a client pubkey, 
-which will need to execute the agreementaccept RPC and sign the proposal.
-*/
-
 #ifndef CC_AGREEMENTS_H
 #define CC_AGREEMENTS_H
 
@@ -31,6 +23,7 @@ which will need to execute the agreementaccept RPC and sign the proposal.
 #define CC_MARKER_VALUE 10000
 #define CC_RESPONSE_VALUE 50000
 
+/*
 /// Decodes op_return data marked with EVAL_AGREEMENTS using a decoder function corresponding to the found function id.
 /// @param scriptPubKey op_return data object
 /// @returns function id of provided op_return data. If the function id is invalid or the data structure does not match specifications for its function id, returns (uint8_t)0. 
@@ -172,6 +165,7 @@ CScript EncodeAgreementUnlockOpRet(uint8_t version, uint256 agreementtxid, uint2
 /// @param pawnshoptxid transaction id of the Pawnshop instance where the deposit funds are sent
 /// @returns the function id found within the CScript object. If data malformed or function is invalid, returns (uint8_t)0.
 uint8_t DecodeAgreementUnlockOpRet(CScript scriptPubKey, uint8_t &version, uint256 &agreementtxid, uint256 &pawnshoptxid);
+*/
 
 /// Main validation code of the Agreements CC. Is triggered when a transaction spending one or more CC outputs marked with the EVAL_AGREEMENTS eval code is broadcasted to the node network or when a block containing such a transaction is received by a node.
 /// @param cp CCcontract_info object with Agreements CC variables (global CC address, global private key, etc.)
@@ -180,7 +174,7 @@ uint8_t DecodeAgreementUnlockOpRet(CScript scriptPubKey, uint8_t &version, uint2
 /// @param nIn not used here
 /// @returns true if transaction is valid, otherwise false or calls eval->Invalid().
 bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, uint32_t nIn);
-
+/*
 /// Helper function that extracts the CScript op_return data object from the proposal transaction CTransaction object. Used to help extract required data for validating proposal acceptance transactions.
 /// @param tx proposal transaction object
 /// @param proposaltxid id of the proposal transaction
@@ -239,23 +233,24 @@ bool GetLatestAgreementUpdate(uint256 agreementtxid, uint256 &latesttxid, uint8_
 /// @param revision revision number of the specified agreement update transaction
 /// @returns true if the data was retrieved successfully, otherwise false.
 void GetAgreementUpdateData(uint256 updatetxid, std::string &name, uint256 &datahash, int64_t &disputefee, int64_t &depositsplit, int64_t &revision);
+*/
 
-// for definitions of RPC implementations see the help sections in the pawnshoprpc.cpp file
-UniValue AgreementCreate(const CPubKey& pk, uint64_t txfee, std::string name, uint256 datahash, std::vector<uint8_t> destpub, std::vector<uint8_t> arbitrator, int64_t payment, int64_t disputefee, int64_t deposit, uint256 prevproposaltxid, uint256 refagreementtxid);
-UniValue AgreementUpdate(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, std::string name, uint256 datahash, int64_t payment, uint256 prevproposaltxid, int64_t newdisputefee);
-UniValue AgreementClose(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, std::string name, uint256 datahash, int64_t depositcut, int64_t payment, uint256 prevproposaltxid);
-UniValue AgreementStopProposal(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid);
-UniValue AgreementAccept(const CPubKey& pk, uint64_t txfee, uint256 proposaltxid);
-UniValue AgreementDispute(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, uint256 datahash);
-UniValue AgreementResolve(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, std::vector<uint8_t> rewardedpubkey);
-UniValue AgreementUnlock(const CPubKey& pk, uint64_t txfee, uint256 agreementtxid, uint256 pawnshoptxid);
+// for definitions of RPC implementations see the help sections in the agreementsrpc.cpp file
+UniValue AgreementCreate(const CPubKey& pk,uint64_t txfee,CPubKey destpub,std::string agreementname,uint256 agreementhash,int64_t deposit,CPubKey arbitratorpub,int64_t disputefee,uint256 refagreementtxid,int64_t payment);
+UniValue AgreementUpdate(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 agreementhash,std::string agreementname,int64_t payment);
+UniValue AgreementClose(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 agreementhash,int64_t depositcut,std::string agreementname,int64_t payment);
+UniValue AgreementStopProposal(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid,std::string cancelinfo);
+UniValue AgreementAccept(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid);
+UniValue AgreementDispute(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,std::string disputeinfo,bool bFinalDispute);
+UniValue AgreementResolve(const CPubKey& pk,uint64_t txfee,uint256 disputetxid,int64_t depositcut,std::string resolutioninfo);
+UniValue AgreementUnlock(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 unlocktxid);
 
 UniValue AgreementInfo(uint256 txid);
-UniValue AgreementUpdateLog(uint256 agreementtxid, int64_t samplenum, bool backwards);
+/*UniValue AgreementUpdateLog(uint256 agreementtxid, int64_t samplenum, bool backwards);
 UniValue AgreementProposals(CPubKey pk, uint256 agreementtxid);
 UniValue AgreementSubcontracts(uint256 agreementtxid);
 UniValue AgreementInventory(CPubKey pk);
-UniValue AgreementSettlements(const CPubKey& pk, uint256 agreementtxid, bool bActiveOnly);
+UniValue AgreementSettlements(const CPubKey& pk, uint256 agreementtxid, bool bActiveOnly);*/
 UniValue AgreementList();
 
 #endif

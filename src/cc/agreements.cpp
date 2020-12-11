@@ -30,22 +30,108 @@ A visual representation of a typical agreement under this CC would look somethin
    V      V      V      V
  | c |->| u |->| u |->| t |
 
- Each contract has a small escrow for a deposit, which is funded by the recipient pubkey at the time of contract creation.
- Some additional features include initial prepayments (can be used for mobilization fees, etc.), as well as optional dispute resolution using a third arbitrator pubkey.
+Each contract has a small escrow for a deposit, which is funded by the recipient pubkey at the time of contract creation.
+The contract can be updated and/or closed by any member (offeror or signer) pubkey creating a proposal for it, and having it accepted by the other member pubkey.
 
+In addition, a contract can also be disputed if the initial proposal for creating a contract contains a fixed arbitrator pubkey.
+The arbitrator pubkey can be owned by a mutually agreed upon third party or an automatic arbitration system of some sort.
+
+Each proposal can include a requirement for initial prepayments (can be used for mobilization fees, etc.).
+
+Proposal creation:
+vin.0: normal input
+...
+vin.n-1: normal input
+vout.0: response baton output to srcpub/destpub CC 1of2 address
+vout.1: marker to srcpub CC address
+vout.2: marker to destpub CC address
+vout.3 (optional): marker to arbitratorpub CC address
+vout.n-2: normal change
+vout.n-1: OP_RETURN EVAL_AGREEMENTS 'p' version srcpub destpub agreementname agreementhash deposit payment refagreementtxid bNewAgreement arbitratorpub disputefee
+
+Proposal cancellation:
+vin.0: normal input
+vin.1: baton input from proposal
+...
+vin.n-1: normal input
+vout.n-2: normal change
+vout.n-1: OP_RETURN EVAL_AGREEMENTS 's' version proposaltxid srcpub cancelinfo
+
+Contract creation:
+vin.0: normal input
+vin.1: baton input from proposal
+...
+vin.n-1: normal input
+vout.0: event log baton output to srcpub/destpub CC 1of2 address
+vout.1: deposit / activity marker to global CC pubkey
+vout.2: payment to proposal's srcpub normal address
+vout.3: marker to proposal's srcpub CC address
+vout.4: marker to proposal's destpub CC address
+vout.5 (optional): marker to proposal's arbitratorpub CC address
+vout.n-2: normal change
+vout.n-1: OP_RETURN EVAL_AGREEMENTS 'c' version proposaltxid
+
+Contract update:
+vin.0: normal input
+vin.1: baton input from latest agreement event log entry
+vin.2: baton input from proposal
+...
+vin.n-1: normal input
+vout.0: event log baton output to srcpub/destpub CC 1of2 address
+vout.1: payment to proposal's srcpub normal address
+vout.n-2: normal change
+vout.n-1: OP_RETURN EVAL_AGREEMENTS 'u' version agreementtxid proposaltxid
+
+Contract closure:
+vin.0: normal input
+vin.1: baton input from latest agreement event log entry
+vin.2: baton input from proposal
+vin.3: deposit from agreement
+...
+vin.n-1: normal input
+vout.0: depositcut + payment to proposal's srcpub normal address
+vout.n-2: normal change + (deposit - depositcut)
+vout.n-1: OP_RETURN EVAL_AGREEMENTS 't' version agreementtxid proposaltxid depositcut
+
+Contract dispute:
+vin.0: normal input
+vin.1: baton input from latest agreement event log entry
+...
+vin.n-1: normal input
+vout.0: event log baton output + disputefee to arbitratorpub CC address
+vout.n-2: normal change
+vout.n-1: OP_RETURN EVAL_AGREEMENTS 'd' version agreementtxid srcpub destpub disputeinfo bFinalDispute
+
+Contract dispute resolution:
+vin.0: normal input
+vin.1: baton input from latest agreement event log entry + disputefee
+vin.2 (optional): deposit from agreement
+...
+vin.n-1: normal input
+if deposit is taken:
+	vout.0: depositcut to dispute's srcpub normal address, assuming depositcut != 0
+	vout.1: (deposit - depositcut) to dispute's destpub normal address, assuming depositcut != deposit
+if deposit is depositcut < 0:
+	vout.0: event log baton output to srcpub/destpub CC 1of2 address
+vout.n-2: normal change + disputefee
+vout.n-1: OP_RETURN EVAL_AGREEMENTS 'r' version agreementtxid disputetxid depositcut resolutioninfo
+
+Contract deposit unlock:
+TBD
+OP_RETURN EVAL_AGREEMENTS 'n' version agreementtxid unlocktxid
 */
 
 // --- Start of consensus code ---
 
 int64_t IsAgreementsvout(struct CCcontract_info *cp,const CTransaction& tx,int32_t v, char* destaddr)
 {
-    char tmpaddr[64];
-    if ( tx.vout[v].scriptPubKey.IsPayToCryptoCondition() != 0 )
-    {
-        if ( Getscriptaddress(tmpaddr,tx.vout[v].scriptPubKey) > 0 && strcmp(tmpaddr,destaddr) == 0 )
-            return(tx.vout[v].nValue);
-    }
-    return(0);
+	char tmpaddr[64];
+	if ( tx.vout[v].scriptPubKey.IsPayToCryptoCondition() != 0 )
+	{
+		if ( Getscriptaddress(tmpaddr,tx.vout[v].scriptPubKey) > 0 && strcmp(tmpaddr,destaddr) == 0 )
+			return(tx.vout[v].nValue);
+	}
+	return(0);
 }
 
 // OP_RETURN data encoders and decoders for all Agreements transactions.
@@ -153,7 +239,21 @@ uint8_t DecodeAgreementDisputeResolveOpRet(CScript scriptPubKey, uint8_t &versio
 		return(funcid);
 	return(0);
 }
-// Unlock opret encoders/decoders TBD.
+
+CScript EncodeAgreementUnlockOpRet(uint8_t version, uint256 agreementtxid, uint256 unlocktxid)
+{
+	CScript opret; uint8_t evalcode = EVAL_AGREEMENTS, funcid = 'n';
+	opret << OP_RETURN << E_MARSHAL(ss << evalcode << funcid << version << agreementtxid << unlocktxid);
+	return(opret);
+}
+uint8_t DecodeAgreementUnlockOpRet(CScript scriptPubKey, uint8_t &version, uint256 &agreementtxid, uint256 &unlocktxid)
+{
+	std::vector<uint8_t> vopret; uint8_t evalcode, funcid;
+	GetOpReturnData(scriptPubKey, vopret);
+	if(vopret.size() > 2 && E_UNMARSHAL(vopret, ss >> evalcode; ss >> funcid; ss >> version; ss >> agreementtxid; ss >> unlocktxid) != 0 && evalcode == EVAL_AGREEMENTS)
+		return(funcid);
+	return(0);
+}
 
 // Generic decoder for Agreements transactions, returns function id.
 uint8_t DecodeAgreementOpRet(const CScript scriptPubKey)
@@ -208,81 +308,48 @@ uint8_t DecodeAgreementOpRet(const CScript scriptPubKey)
 // Validator for normal inputs in Agreements transactions.
 bool ValidateAgreementsNormalVins(Eval* eval, const CTransaction& tx, int32_t index)
 {
-    for (int i=index;i<tx.vin.size();i++)
-        if (IsCCInput(tx.vin[i].scriptSig) != 0 )
-            return eval->Invalid("vin."+std::to_string(i)+" is normal for agreement tx!");
-    return (true);
+	for (int i=index;i<tx.vin.size();i++)
+		if (IsCCInput(tx.vin[i].scriptSig) != 0 )
+			return eval->Invalid("vin."+std::to_string(i)+" is normal for agreement tx!");
+	return (true);
 }
 
 // Validator for CC inputs found in Agreements transactions.
 bool ValidateAgreementsCCVin(struct CCcontract_info *cp,Eval* eval,const CTransaction& tx,int32_t index,int32_t prevVout,uint256 prevtxid,char* fromaddr,int64_t amount)
 {
-    CTransaction prevTx;
+	CTransaction prevTx;
 	uint256 hashblock;
 	int32_t numvouts;
-    char tmpaddr[64];
+	char tmpaddr[64];
 
 	// Check if a vin is a Agreements CC vin.
-    if ((*cp->ismyvin)(tx.vin[index].scriptSig) == 0)
-        return eval->Invalid("vin."+std::to_string(index)+" is agreement CC for agreement tx!");
+	if ((*cp->ismyvin)(tx.vin[index].scriptSig) == 0)
+		return eval->Invalid("vin."+std::to_string(index)+" is agreement CC for agreement tx!");
 
 	// Verify previous transaction and its op_return.
-    else if (myGetTransaction(tx.vin[index].prevout.hash,prevTx,hashblock) == 0)
-        return eval->Invalid("vin."+std::to_string(index)+" tx does not exist!");
-    else if ((numvouts=prevTx.vout.size()) > 0 && DecodeAgreementOpRet(prevTx.vout[numvouts-1].scriptPubKey) == 0) 
-        return eval->Invalid("invalid vin."+std::to_string(index)+" tx OP_RETURN data!");
+	else if (myGetTransaction(tx.vin[index].prevout.hash,prevTx,hashblock) == 0)
+		return eval->Invalid("vin."+std::to_string(index)+" tx does not exist!");
+	else if ((numvouts=prevTx.vout.size()) > 0 && DecodeAgreementOpRet(prevTx.vout[numvouts-1].scriptPubKey) == 0) 
+		return eval->Invalid("invalid vin."+std::to_string(index)+" tx OP_RETURN data!");
 	
 	// If fromaddr != 0, validate prevout dest address.
-    else if (fromaddr!=0 && Getscriptaddress(tmpaddr,prevTx.vout[tx.vin[index].prevout.n].scriptPubKey) && strcmp(tmpaddr,fromaddr)!=0)
-        return eval->Invalid("invalid vin."+std::to_string(index)+" address!");
+	else if (fromaddr!=0 && Getscriptaddress(tmpaddr,prevTx.vout[tx.vin[index].prevout.n].scriptPubKey) && strcmp(tmpaddr,fromaddr)!=0)
+		return eval->Invalid("invalid vin."+std::to_string(index)+" address!");
 
 	// if amount > 0, validate amount.
-    else if (amount>0 && prevTx.vout[tx.vin[index].prevout.n].nValue!=amount)
-        return eval->Invalid("vin."+std::to_string(index)+" invalid amount!");
+	else if (amount>0 && prevTx.vout[tx.vin[index].prevout.n].nValue!=amount)
+		return eval->Invalid("vin."+std::to_string(index)+" invalid amount!");
 	
 	// if prevVout >= 0, validate spent vout number.
 	else if (prevVout>=0 && tx.vin[index].prevout.n!=prevVout)
-        return eval->Invalid("vin."+std::to_string(index)+" invalid prevout number, expected "+std::to_string(prevVout)+", got"+std::to_string(tx.vin[index].prevout.n)+"!");
-    
+		return eval->Invalid("vin."+std::to_string(index)+" invalid prevout number, expected "+std::to_string(prevVout)+", got"+std::to_string(tx.vin[index].prevout.n)+"!");
+
 	// Validate previous txid.
 	else if (prevTx.GetHash()!=prevtxid) 
-        return eval->Invalid("invalid vin."+std::to_string(index)+" tx, different txid than expected!");
+		return eval->Invalid("invalid vin."+std::to_string(index)+" tx, different txid than expected!");
 	
-    return (true);
+	return (true);
 }
-
-// TODO: deprecate
-// Finds static (immutable) information from the specified agreement id.
-// Static data includes all member pubkeys, deposit, disputefee and refagreementtxid.
-// Returns proposaltxid if info is successfully retrieved, zeroid if no agreement is found with the specified txid or the info was not successfully retrieved.
-/*uint256 GetAgreementStaticData(uint256 agreementtxid, CPubKey &offerorpub, CPubKey &signerpub, CPubKey &arbitratorpub, int64_t &deposit, int64_t &disputefee, uint256 &refagreementtxid)
-{
-	uint8_t version;
-	int64_t payment;
-	CTransaction agreementtx, proposaltx;
-	uint256 hashBlock, dummyuint256, proposaltxid;
-	std::string dummystring;
-	bool dummybool;
-
-	// Finding the agreement transaction.
-	if (myGetTransaction(agreementtxid, agreementtx, hashBlock) && agreementtx.vout.size() > 0 && 
-
-	// Decoding the agreement transaction op_return.
-	DecodeAgreementSigningOpRet(agreementtxid.vout.back().scriptPubKey,version,proposaltxid) == 'c' &&
-
-	// Finding the accepted proposal transaction.
-	myGetTransaction(proposaltxid, proposaltx, hashBlock) && proposaltx.vout.size() > 0 &&
-
-	// Decoding the accepted proposal transaction op_return and getting the agreement data.
-	DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,offerorpub,signerpub,
-	dummystring,dummyuint256,deposit,payment,refagreementtxid,dummybool,arbitratorpub,disputefee) == 'p')
-	{
-		return proposaltxid;
-	}
-
-	std::cerr << "GetAgreementStaticData: couldn't find agreement transaction or its data" << std::endl;
-	return zeroid;
-}*/
 
 // Finds information from the accepted proposal of the specified accept transaction id.
 // accepttxid must refer to a transaction with function id 'c', 'u' or 't'.
@@ -330,7 +397,7 @@ uint256 GetAcceptedProposalData(uint256 accepttxid, CPubKey &offerorpub, CPubKey
 		}
 	}
 
-	std::cerr << "GetAgreementStaticData: couldn't find accepttxid transaction or its data" << std::endl;
+	std::cerr << "GetAcceptedProposalData: couldn't find accepttxid transaction or its data" << std::endl;
 	return zeroid;
 }
 
@@ -351,7 +418,7 @@ uint256 FindLatestAgreementEventTx(uint256 agreementtxid, struct CCcontract_info
 	DecodeAgreementOpRet(sourcetx.vout.back().scriptPubKey) == 'c')
 	{
 		// Get all member pubkeys of the agreement.
-		GetAgreementStaticData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+		GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
 
 		// There are two types of valid event log batons: vouts sent to the offerorpub/signerpub CC 1of2 address with CC_MARKER_VALUE nValue, and vouts sent to the arbitratorpub's CC address.
 		// Both of these types are vout.0.
@@ -402,7 +469,7 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 
 	// Decoding data from last vout.
 	if (DecodeAgreementProposalOpRet(proposaltx.vout[numvouts-1].scriptPubKey,version,srcpub,destpub,agreementname,
-		agreementhash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) != 'p')
+	agreementhash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) != 'p')
 		return eval->Invalid("Referenced proposal transaction data invalid!");
 
 	// Verify that vin0 is a normal input and was signed by srcpub.
@@ -415,7 +482,7 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 
 	// Verify that vout0 is an Agreements vout and is sent to srcpub/destpub 1of2 CC address.
 	else if (ConstrainVout(proposaltx.vout[0],1,mutualCCaddress,0)==0)
-        return eval->Invalid("vout.0 is agreement CC baton vout to srcpub for 'p' type transaction!");
+		return eval->Invalid("vout.0 is agreement CC baton vout to srcpub for 'p' type transaction!");
 
 	// If bStrict is set to true, we also check the proposal data and other vouts.
 	// This is to make sure the resulting agreement/update/etc is valid.
@@ -440,8 +507,12 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 		// If refagreementtxid is specified, make sure it is of a valid agreement transaction.
 		if (refagreementtxid != zeroid)
 		{
+			if (myGetTransaction(refagreementtxid, refagreementtx, hashBlock) == 0 || refagreementtx.vout.size() == 0 ||
+			DecodeAgreementOpRet(refagreementtx.vout.back().scriptPubKey) != 'c')
+				return eval->Invalid("Couldn't find valid transaction for ref agreement specified in proposal!");
+			
 			// Get the agreement's offerorpub/signerpub/refarbitratorpub.
-			if (GetAgreementStaticData(refagreementtxid,offerorpub,signerpub,refarbitratorpub,dummyint64,dummyint64,dummyuint256) == zeroid)
+			else if (GetAcceptedProposalData(refagreementtxid,offerorpub,signerpub,refarbitratorpub,dummyint64,dummyint64,dummyuint256) == zeroid)
 				return eval->Invalid("Couldn't obtain member pubkeys of ref agreement specified in proposal!");
 
 			// Check if any pubkey specified in the proposal relates to any of the pubkeys specified in the ref agreement.
@@ -490,15 +561,15 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 
 		// Check vout0 for CC_RESPONSE_VALUE.
 		if (ConstrainVout(proposaltx.vout[0],1,mutualCCaddress,CC_RESPONSE_VALUE)==0)
-        	return eval->Invalid("vout.0 must be at least "+std::to_string(CC_RESPONSE_VALUE)+" satoshis for 'p' type transaction!");
+			return eval->Invalid("vout.0 must be at least "+std::to_string(CC_RESPONSE_VALUE)+" satoshis for 'p' type transaction!");
 		
 		// vout1 must be a marker sent to srcpub CC address.
 		else if (ConstrainVout(proposaltx.vout[1],1,srcmarker,CC_MARKER_VALUE)==0)
-        	return eval->Invalid("vout.1 is marker sent to srcpub CC address for 'p' type transaction!");
+			return eval->Invalid("vout.1 is marker sent to srcpub CC address for 'p' type transaction!");
 		
 		// vout2 must be a marker sent to destpub CC address.
 		else if (ConstrainVout(proposaltx.vout[2],1,destmarker,CC_MARKER_VALUE)==0)
-        	return eval->Invalid("vout.2 is marker sent to destpub CC address for 'p' type transaction!");
+			return eval->Invalid("vout.2 is marker sent to destpub CC address for 'p' type transaction!");
 		
 		// If arbitratorpub is specified, vout3 must be a marker sent to arbitratorpub CC address.
 		if (arbitratorpub.IsValid())
@@ -506,7 +577,7 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 			if (numvouts < 5 || numvouts > 6)
 				return eval->Invalid("Invalid number of vouts for 'p' type transaction with arbitrator!");
 			else if (ConstrainVout(proposaltx.vout[3],1,arbmarker,CC_MARKER_VALUE)==0)
-        		return eval->Invalid("vout.3 is marker sent to arbitratorpub CC address for 'p' type transaction!");
+				return eval->Invalid("vout.3 is marker sent to arbitratorpub CC address for 'p' type transaction!");
 		}
 		else
 		{
@@ -522,12 +593,12 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 
 bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, uint32_t nIn)
 {
-	CTransaction proposaltx,agreementtx,disputetx;
+	CTransaction proposaltx,agreementtx,disputetx,latesttx;
 	CPubKey srcpub,destpub,cancelpub,arbitratorpub,offerorpub,signerpub;
 	uint256 proposaltxid,hashBlock,batontxid,agreementhash,agreementtxid,refagreementtxid,disputetxid,disputeagreementtxid;
 	int64_t deposit,payment,disputefee,depositcut,proposeddepositcut;
 	int32_t numvins,numvouts,vini,height,retcode;
-	uint8_t funcid,version;
+	uint8_t funcid,version,latestfuncid;
 	std::string cancelinfo,agreementname,disputeinfo,resolutioninfo;
 	bool bNewAgreement,bFinalDispute;
 	char globalCCaddress[65],mutualCCaddress[65],srcCCaddress[65],srcnormaladdress[65],destCCaddress[65],destnormaladdress[65],arbCCaddress[65];
@@ -607,7 +678,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
 
 				// Check vout boundaries for proposal cancel transactions.
-				else if (numvouts > 2)
+				if (numvouts > 2)
 					return eval->Invalid("Too many vouts for 's' type transaction!");
 
 				// Verify that vin.0 was signed by cancelpub.
@@ -676,7 +747,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					GetCCaddress(cp, arbCCaddress, arbitratorpub);
 
 				// Check vout boundaries for contract creation transactions.
-				else if (numvouts < (arbitratorpub.IsValid() ? 7 : 6) || numvouts > (arbitratorpub.IsValid() ? 8 : 7))
+				if (numvouts < (arbitratorpub.IsValid() ? 7 : 6) || numvouts > (arbitratorpub.IsValid() ? 8 : 7))
 					return eval->Invalid("Invalid number of vouts for 'c' type transaction!");
 				
 				// Verify that vin.0 was signed by proposal's destpub.
@@ -738,7 +809,18 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
 					return eval->Invalid("Agreement specified in update transaction is no longer active!");
 
-				// Get the proposaltxid transaction, and check if it's confirmed/notarised.
+				// Verify that the agreement is not currently suspended.
+				if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp),latesttx,hashBlock) != 0 &&
+				latesttx.vout.size() > 0 &&
+				(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
+				{
+					if (latestfuncid == 'd')
+						return eval->Invalid("Specified agreement is currently suspended, can't validate 'u' type transaction!");
+				}
+				else
+					return eval->Invalid("Couldn't find latest event for specified agreement!");
+
+				// Get the proposaltxid transaction.
 				if (myGetTransaction(proposaltxid,proposaltx,hashBlock) == 0 || proposaltx.vout.size() == 0 ||
 				DecodeAgreementOpRet(proposaltx.vout.back().scriptPubKey) != 'p')
 					return eval->Invalid("Accepted proposal transaction not found for 'u' type transaction!");
@@ -755,11 +837,11 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Accepted proposal and update transaction are not referring to the same agreement!");
 				
 				// Verify that the proposal is for updating an existing agreement, not for a new agreement.
-				if (bNewAgreement)
+				else if (bNewAgreement)
 					return eval->Invalid("Accepted proposal is not for updating existing agreement!");
 				
 				// Verifying deposit. (should be < 0 for contract updates)
-				if (deposit >= 0)
+				else if (deposit >= 0)
 					return eval->Invalid("Invalid deposit amount for 'u' type transaction, should be -1 or less!");
 				
 				// Verify that the proposal hasn't been spent already.
@@ -770,7 +852,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				Getscriptaddress(srcnormaladdress,CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG);
 
 				// Check vout boundaries for contract update transactions.
-				else if (numvouts < 3 || numvouts > 4)
+				if (numvouts < 3 || numvouts > 4)
 					return eval->Invalid("Invalid number of vouts for 'u' type transaction!");
 
 				// Verify that vin.0 was signed by proposal's destpub.
@@ -822,10 +904,21 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
 					return eval->Invalid("Agreement specified in closure transaction is no longer active!");
 
+				// Verify that the agreement is not currently suspended.
+				if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp),latesttx,hashBlock) != 0 &&
+				latesttx.vout.size() > 0 &&
+				(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
+				{
+					if (latestfuncid == 'd')
+						return eval->Invalid("Specified agreement is currently suspended, can't validate 't' type transaction!");
+				}
+				else
+					return eval->Invalid("Couldn't find latest event for specified agreement!");
+				
 				// Check value of the deposit vout, for depositcut checks later on.
 				deposit = agreementtx.vout[1].nValue;
 
-				// Get the proposaltxid transaction, and check if it's confirmed/notarised.
+				// Get the proposaltxid transaction.
 				if (myGetTransaction(proposaltxid,proposaltx,hashBlock) == 0 || proposaltx.vout.size() == 0 ||
 				DecodeAgreementOpRet(proposaltx.vout.back().scriptPubKey) != 'p')
 					return eval->Invalid("Accepted proposal transaction not found for 't' type transaction!");
@@ -842,7 +935,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Accepted proposal and closure transaction are not referring to the same agreement!");
 				
 				// Verify that the proposal is for updating an existing agreement, not for a new agreement.
-				if (bNewAgreement)
+				else if (bNewAgreement)
 					return eval->Invalid("Accepted proposal is not for updating existing agreement!");
 
 				// Verify that the proposal hasn't been spent already.
@@ -850,18 +943,18 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Accepted proposal transaction has already been spent!");
 				
 				// Verify that depositcut is <= deposit, and that it matches with what's in the proposal.
-				if (depositcut != proposeddepositcut)
+				else if (depositcut != proposeddepositcut)
 					return eval->Invalid("Deposit cut in 't' type transaction does not match the proposed deposit cut!");
 
 				// Verifying deposit cut. (should be >= 0 for contract closures)
-				if (depositcut < 0 || depositcut > deposit)
+				else if (depositcut < 0 || depositcut > deposit)
 					return eval->Invalid("Invalid depositcut amount for 't' type transaction, should be between 0 and total deposit!");
 				
 				GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
 				Getscriptaddress(srcnormaladdress,CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG);
 
 				// Check vout boundaries for contract closure transactions.
-				else if (numvouts < 2 || numvouts > 3)
+				if (numvouts < 2 || numvouts > 3)
 					return eval->Invalid("Invalid number of vouts for 't' type transaction!");
 
 				// Verify that vin.0 was signed by proposal's destpub.
@@ -917,9 +1010,20 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				// Verify that the agreement is still active by checking if its deposit has been spent or not.
 				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
 					return eval->Invalid("Agreement specified in dispute transaction is no longer active!");
+				
+				// Verify that the agreement is not currently suspended.
+				if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp),latesttx,hashBlock) != 0 &&
+				latesttx.vout.size() > 0 &&
+				(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
+				{
+					if (latestfuncid == 'd')
+						return eval->Invalid("Specified agreement is currently suspended, can't validate 'd' type transaction!");
+				}
+				else
+					return eval->Invalid("Couldn't find latest event for specified agreement!");
 
 				// Check if it contains an arbitrator pubkey. (aka if disputes are enabled)
-				GetAgreementStaticData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+				GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
 				if (!(arbitratorpub.IsValid()))
 					return eval->Invalid("Agreement arbitrator pubkey invalid or unspecified, disputes are disabled!");
 
@@ -931,7 +1035,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				GetCCaddress(cp, arbCCaddress, arbitratorpub);
 
 				// Check vout boundaries for contract dispute transactions.
-				else if (numvouts < 2 || numvouts > 3)
+				if (numvouts < 2 || numvouts > 3)
 					return eval->Invalid("Invalid number of vouts for 'd' type transaction!");
 
 				// Verify that vin.0 was signed by srcpub.
@@ -984,21 +1088,21 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Agreement specified in dispute transaction is no longer active!");
 
 				// Get the agreement deposit value.
-				GetAgreementStaticData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+				GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
 				if (!(arbitratorpub.IsValid()))
 					return eval->Invalid("Agreement arbitrator pubkey invalid or unspecified, disputes are disabled!");
 				
 				// Verify that depositcut <= deposit.
-				if (depositcut > deposit)
+				else if (depositcut > deposit)
 					return eval->Invalid("Invalid depositcut amount for 'r' type transaction, should be between 0 and total deposit!");
 
-				// Get the dispute transaction, and check if it's confirmed/notarised.
+				// Get the dispute transaction.
 				else if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
 				DecodeAgreementOpRet(disputetx.vout.back().scriptPubKey) != 'd')
 					return eval->Invalid("Specified dispute not found for 'r' type transaction!");
 
 				// Verify that the dispute is valid. (points to correct agreementtxid, srcpub/destpub is correct etc.)
-				if (FindLatestAgreementEventTx(agreementtxid,cp) != disputetxid)
+				else if (FindLatestAgreementEventTx(agreementtxid,cp) != disputetxid)
 					return eval->Invalid("Specified dispute txid is not latest event for this agreement!");
 
 				// Get dispute srcpub and destpub pubkeys.
@@ -1011,7 +1115,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Pubkey signing the dispute doesn't match any member pubkeys of the agreement!");
 
 				// If depositcut < 0, then the deposit vout from the agreement must not be spent.
-				if (depositcut < 0 && bFinalDispute)
+				else if (depositcut < 0 && bFinalDispute)
 					return eval->Invalid("Cannot cancel final dispute for 'r' type transaction!");
 
 				GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
@@ -1020,7 +1124,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				GetCCaddress(cp, arbCCaddress, arbitratorpub);
 				
 				// Check boundaries for dispute resolution transactions.
-				else if (numvouts < 2 || numvouts > 4)
+				if (numvouts < 2 || numvouts > 4)
 					return eval->Invalid("Invalid number of vouts for 'd' type transaction!");
 				
 				// Verify that vin.0 was signed by arbitratorpub.
@@ -1101,78 +1205,680 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 
 // --- Helper functions for RPC implementations ---
 
-// TODO: GetLatestAgreementName
-std::string GetLatestAgreementName(uint256 agreementtxid)
+// Function for getting the latest accepted proposaltxid of an agreement. Useful for finding data like latest agreement name or hash.
+// Using FindLatestAgreementEventTx on its own for this is insufficient since the latest transaction won't necessarily have a proposaltxid.
+// Returns latest agreementhash if successful, otherwise returns zeroid.
+uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info *cp)
 {
+	CPubKey srcpub,destpub,arbitratorpub;
+	CTransaction latesttx,proposaltx;
+	uint8_t funcid,version;
+	int64_t depositcut,deposit,payment,disputefee;
+	uint256 latesttxid,hashBlock,refagreementtxid,tempagreementtxid,tempproposaltxid,agreementhash,proposaltxid = zeroid;
+	std::string agreementname;
+	bool bNewAgreement;
 
+	// Get the latest agreement event.
+	latesttxid = FindLatestAgreementEventTx(agreementtxid, cp);
+
+	// While we iterate through valid Agreements transactions...
+	while (myGetTransaction(latesttxid, latesttx, hashBlock) != 0 && latesttx.vout.size() > 0 &&
+	(funcid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
+	{
+		switch (funcid)
+		{
+			case 'c':
+				if (latesttx.GetHash() == agreementtxid)
+					proposaltxid = latesttx.vin[1].prevout.hash;
+				break;
+			case 'u':
+				DecodeAgreementUpdateOpRet(latesttx.vout.back().scriptPubKey,version,tempagreementtxid,tempproposaltxid);
+				if (tempagreementtxid == agreementtxid)
+					proposaltxid = tempproposaltxid;
+				break;
+			case 't':
+				DecodeAgreementCloseOpRet(latesttx.vout.back().scriptPubKey,version,tempagreementtxid,tempproposaltxid,depositcut);
+				if (tempagreementtxid == agreementtxid)
+					proposaltxid = tempproposaltxid;
+				break;
+			case 'd': case 'r': // these types don't contain an agreement hash, so skip them and move on to the previous baton
+				latesttxid == latesttx.vin[1].prevout.hash;
+				continue;
+			default:
+				LOGSTREAM("agreementscc", CCLOG_INFO, stream << "FindLatestAcceptedProposal: found invalid funcid "+std::to_string(funcid)+"" << std::endl);
+				return zeroid;
+		}
+	}
+
+	// If we found a valid latest proposaltxid, check if it's valid and return it.
+	if (proposaltxid != zeroid &&
+	myGetTransaction(proposaltxid, proposaltx, hashBlock) != 0 && proposaltx.vout.size() > 0 &&
+	DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey) == 'p')
+	{
+		return proposaltxid;
+	}
+		
+	LOGSTREAM("agreementscc", CCLOG_INFO, stream << "FindLatestAcceptedProposal: found "+std::to_string(funcid)+" funcid, couldn't retrieve hash" << std::endl);
+	return zeroid;
 }
 
-// TODO: GetLatestAgreementHash
-uint256 GetLatestAgreementName(uint256 agreementtxid)
-{
-	
-}
+// TODO: GetAgreementEventNum (int32_t eventnum) - revisions
 
-// agreementcreate receiver agreementname agreementhash deposit [arbitrator][disputefee][refagreementtxid][payment]
+// --- RPC implementations for transaction creation ---
+
+// Transaction constructor for agreementcreate rpc.
+// Creates transaction with 'p' function id, with bNewAgreement set to true.
 UniValue AgreementCreate(const CPubKey& pk,uint64_t txfee,CPubKey destpub,std::string agreementname,uint256 agreementhash,int64_t deposit,CPubKey arbitratorpub,int64_t disputefee,uint256 refagreementtxid,int64_t payment)
 {
-	// Variables
+	CPubKey mypk,offerorpub,signerpub,refarbitratorpub;
+	int64_t dummyint64;
+	uint256 dummyuint256,hashBlock;
+	CScript opret;
+	CTransaction refagreementtx;
 
 	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
-	struct CCcontract_info *cp,C; cp = CCinit(&C,EVAL_AGREEMENTS);
-	if (txfee == 0) txfee = CC_TXFEE;
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
 	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
 
-	// Parse data, check validity and get info needed for tx construction.
-	// Check receiver.
+	// Checking passed parameters.
+	if (!(destpub.IsFullyValid()))
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Destination pubkey must be valid");
+	if (agreementname.empty() || agreementname.size() > 64)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement name cannot be empty and must be up to 64 characters");
+	if (agreementhash == zeroid)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement hash must be a valid sha256 hash");
+	if (deposit < CC_MARKER_VALUE)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required deposit must be at least "+std::to_string(CC_MARKER_VALUE)+" satoshis");
+	if (payment < 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required payment must be positive");
+	
+	// Check arbitrator and disputefee.
+	if (arbitratorpub.IsFullyValid())
+	{
+		if (disputefee < CC_MARKER_VALUE)
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required dispute fee must be at least "+std::to_string(CC_MARKER_VALUE)+" satoshis when arbitrator is defined");
+	}
+	else
+		disputefee = 0;
+	
+	// If refagreementtxid is specified, make sure it is of a valid agreement transaction.
+	if (refagreementtxid != zeroid)
+	{
+		if (myGetTransaction(refagreementtxid,refagreementtx,hashBlock) == 0 || refagreementtx.vout.size() == 0 ||
+		DecodeAgreementOpRet(refagreementtx.vout.back().scriptPubKey) != 'c')
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified reference agreement couldn't be found or is invalid");
 
-	// Check name.
+		// Get the agreement's offerorpub/signerpub/refarbitratorpub.
+		if (GetAcceptedProposalData(refagreementtxid,offerorpub,signerpub,refarbitratorpub,dummyint64,dummyint64,dummyuint256) == zeroid)
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't obtain member pubkeys of specified reference agreement");
 
-	// Check hash.
+		// Check if any pubkey specified in the proposal relates to any of the pubkeys specified in the ref agreement.
+		else if (mypk != offerorpub && mypk != signerpub && destpub != offerorpub && destpub != signerpub)
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Member pubkeys of referenced agreement don't match any of the pubkeys specified in the proposal");
+	}
 
-	// Check deposit, make sure it's >= 10000 sats (TODO: should we check max value?)
-
-	// Check arbitrator, if it exists:
-		// Check disputefee, make sure it's >= 10000 sats (TODO: should we check max value?)
-	// Else, set disputefee to 0
-
-	// Check refagreement, if it exists verify it's used correctly and stuff
-
-	// Check payment if it exists, make sure it's >= 0 (TODO: should we check max value?)
-
-	// Construct opret.
+	opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,mypk,destpub,agreementname,agreementhash,deposit,payment,refagreementtxid,true,arbitratorpub,disputefee);
 
 	if (AddNormalinputs2(mtx, txfee + CC_RESPONSE_VALUE + CC_MARKER_VALUE * 3, 60) > 0) // vin.*: normal input
 	{
 		// vout.0: response baton output to srcpub/destpub CC 1of2 address
-		mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_RESPONSE_VALUE, mypk, CPK_dest)); 
+		mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_RESPONSE_VALUE, mypk, destpub)); 
 		// vout.1: marker to srcpub CC address
 		mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, mypk)); 
 		// vout.2: marker to destpub CC address
 		mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, destpub)); 
 		if (arbitratorpub.IsFullyValid())
 			// vout.3 (optional): marker to arbitratorpub CC address
-			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, destpub)); 
+			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, arbitratorpub)); 
 	
 		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
 	}
 
-	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "error adding normal inputs, check if you have available funds");
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
 }
 
-// Implementations:
-// 	agreementcreate receiver agreementname agreementhash deposit [arbitrator][disputefee][refagreementtxid][payment]
-// 	agreementupdate agreementtxid agreementhash [agreementname][payment]
-// 	agreementclose agreementtxid agreementhash depositcut [agreementname][payment]
-//	agreementstopproposal proposaltxid
-// agreementaccept proposaltxid
-// 	agreementdispute agreementtxid disputeinfo [bFinalDispute]
-// 	agreementresolve disputetxid depositcut
-// 	agreementunlock agreementtxid unlocktxid
+// Transaction constructor for agreementupdate rpc. 
+// Creates transaction with 'p' function id, with bNewAgreement set to false and deposit set to -1.
+UniValue AgreementUpdate(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 agreementhash,std::string agreementname,int64_t payment)
+{
+	uint8_t latestfuncid,dummyuint256;
+	CPubKey mypk,destpub,offerorpub,signerpub,arbitratorpub;
+	CTransaction agreementtx,latesttx;
+	int64_t dummyint64;
+	int32_t vini,height,retcode;
+	uint256 hashBlock, batontxid;
+	CScript opret;
 
-//===========================================================================
-// RPCs - informational
-//===========================================================================
+	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
+	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
+
+	// Checking passed parameters.
+	if (agreementname.size() > 64)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement name must be up to 64 characters");
+	if (agreementhash == zeroid)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement hash must be a valid sha256 hash");
+	if (payment < 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required payment must be positive");
+	
+	// Find the specified agreement.
+	if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
+	DecodeAgreementOpRet(agreementtx.vout.back().scriptPubKey) != 'c')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified agreement transaction not found or is invalid");
+
+	// Check if agreement is still active, by checking if its deposit has been spent or not.
+	else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified agreement is no longer active");
+
+	// Get the agreement's offerorpub/signerpub/arbitratorpub.
+	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,dummyint64,dummyint64,dummyuint256);
+
+	// Check if mypk is eligible, set destpub as the other member of the agreement.
+	if (mypk != offerorpub && mypk != signerpub)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "You are not a member of this agreement");
+
+	if (mypk == offerorpub) destpub = signerpub;
+	else destpub = offerorpub;
+
+	opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,mypk,destpub,agreementname,agreementhash,-1,payment,agreementtxid,false,arbitratorpub,0);
+
+	if (AddNormalinputs2(mtx, txfee + CC_RESPONSE_VALUE + CC_MARKER_VALUE * 3, 60) > 0) // vin.*: normal input
+	{
+		// vout.0: response baton output to srcpub/destpub CC 1of2 address
+		mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_RESPONSE_VALUE, mypk, destpub)); 
+		// vout.1: marker to srcpub CC address
+		mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, mypk)); 
+		// vout.2: marker to destpub CC address
+		mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, destpub)); 
+		if (arbitratorpub.IsFullyValid())
+			// vout.3 (optional): marker to arbitratorpub CC address
+			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, arbitratorpub)); 
+	
+		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+	}
+
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+}
+
+// Transaction constructor for agreementclose rpc. 
+// Creates transaction with 'p' function id, with bNewAgreement set to false and deposit set to user defined amount (indicating a proposal to close agreement).
+UniValue AgreementClose(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 agreementhash,int64_t depositcut,std::string agreementname,int64_t payment)
+{
+	uint8_t latestfuncid,dummyuint256;
+	CPubKey mypk,destpub,offerorpub,signerpub,arbitratorpub;
+	CTransaction agreementtx,latesttx;
+	int64_t dummyint64,deposit;
+	int32_t vini,height,retcode;
+	uint256 hashBlock, batontxid;
+	CScript opret;
+
+	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
+	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
+
+	// Checking passed parameters.
+	if (agreementname.size() > 64)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement name must be up to 64 characters");
+	if (agreementhash == zeroid)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement hash must be a valid sha256 hash");
+	if (depositcut < CC_MARKER_VALUE)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required depositcut must be positive");
+	if (payment < 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required payment must be positive");
+	
+	// Find the specified agreement.
+	if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
+	DecodeAgreementOpRet(agreementtx.vout.back().scriptPubKey) != 'c')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified agreement transaction not found or is invalid");
+
+	// Check if agreement is still active, by checking if its deposit has been spent or not.
+	else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified agreement is no longer active");
+	
+	// Get the agreement's offerorpub/signerpub/arbitratorpub.
+	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,dummyint64,dummyuint256);
+
+	if (depositcut > deposit)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required deposit cut cannot exceed total agreement deposit");
+	
+	// Check if mypk is eligible, set destpub as the other member of the agreement.
+	if (mypk != offerorpub && mypk != signerpub)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "You are not a member of this agreement");
+
+	if (mypk == offerorpub) destpub = signerpub;
+	else destpub = offerorpub;
+
+	opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,mypk,destpub,agreementname,agreementhash,depositcut,payment,agreementtxid,false,arbitratorpub,0);
+
+	if (AddNormalinputs2(mtx, txfee + CC_RESPONSE_VALUE + CC_MARKER_VALUE * 3, 60) > 0) // vin.*: normal input
+	{
+		// vout.0: response baton output to srcpub/destpub CC 1of2 address
+		mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_RESPONSE_VALUE, mypk, destpub)); 
+		// vout.1: marker to srcpub CC address
+		mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, mypk)); 
+		// vout.2: marker to destpub CC address
+		mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, destpub)); 
+		if (arbitratorpub.IsFullyValid())
+			// vout.3 (optional): marker to arbitratorpub CC address
+			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, arbitratorpub)); 
+	
+		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+	}
+
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+}
+
+// Transaction constructor for agreementstopproposal rpc.
+// Creates transaction with 's' function id.
+UniValue AgreementStopProposal(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid,std::string cancelinfo)
+{
+	uint8_t mypriv[32],version;
+	CPubKey mypk,srcpub,destpub,arbitratorpub;
+	CTransaction proposaltx;
+	CScript opret;
+	int64_t deposit,payment,disputefee;
+	int32_t vini,height,retcode;
+	uint256 agreementhash,refagreementtxid,hashBlock,batontxid;
+	std::string agreementname;
+	char mutualCCaddress[65];
+	bool bNewAgreement;
+
+	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
+	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
+
+	// Checking passed parameters.
+	if (cancelinfo.size() > 256)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Cancel information must be up to 256 characters");
+	
+	// Find the specified proposal transaction, extract its data.
+	if (myGetTransaction(proposaltxid,proposaltx,hashBlock) == 0 || proposaltx.vout.size() == 0 ||
+	DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,srcpub,destpub,agreementname,
+	agreementhash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) != 'p')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified proposal transaction not found or is invalid");
+
+	// Check if the proposal is still open, by checking if its response baton has been spent or not.
+	else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified proposal is no longer open");
+
+	// Check if mypk is eligible to cancel this proposal.
+	if (mypk != srcpub && mypk != destpub)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Your pubkey is not eligible for closing this proposal");
+
+	opret = EncodeAgreementProposalCloseOpRet(AGREEMENTCC_VERSION,proposaltxid,mypk,cancelinfo);
+
+	if (AddNormalinputs2(mtx, txfee, 5) > 0) // vin.0 to vin.2+*: normal input
+	{
+		// vin.1: baton input from proposal
+		GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
+		mtx.vin.push_back(CTxIn(proposaltxid,0,CScript()));
+		Myprivkey(mypriv);
+		CCaddr1of2set(cp, srcpub, destpub, mypriv, mutualCCaddress);
+
+		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+	}
+
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+}
+
+// Transaction constructor for agreementaccept rpc.
+// Examines the user defined proposaltxid, and based on its parameters:
+//  Creates transaction with 'c' function id, if bNewAgreement is set to true in the proposal.
+//  Creates transaction with 'u' function id, if bNewAgreement is set to false and deposit is set to < 0 in the proposal.
+//  Creates transaction with 't' function id, if bNewAgreement is set to false and deposit is set to >= 0 in the proposal.
+UniValue AgreementAccept(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid)
+{
+	CTransaction proposaltx,agreementtx,latesttx;
+	uint256 hashBlock,agreementhash,agreementtxid,batontxid,refagreementtxid;
+	CPubKey mypk,srcpub,destpub,arbitratorpub,offerorpub,signerpub;
+	uint8_t version,mypriv[32],latestfuncid;
+	int64_t deposit,payment,disputefee,totaldeposit;
+	int32_t vini,height,retcode;
+	std::string agreementname;
+	bool bNewAgreement;
+	char mutualCCaddress[65];
+	CScript opret;
+
+	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
+	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
+
+	// Find the specified proposal transaction, extract its data.
+	if (myGetTransaction(proposaltxid,proposaltx,hashBlock) == 0 || proposaltx.vout.size() == 0 ||
+	DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,srcpub,destpub,agreementname,
+	agreementhash,deposit,payment,agreementtxid,bNewAgreement,arbitratorpub,disputefee) != 'p')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified proposal transaction not found or is invalid");
+
+	// Check if the proposal is still open, by checking if its response baton has been spent or not.
+	else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Specified proposal is no longer open");
+
+	// Check if mypk is eligible to accept this proposal.
+	if (mypk != destpub)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Your pubkey is not the destination pubkey of this proposal");
+
+	// If bNewAgreement is true, create 'c' type transaction. (contract creation)
+	if (bNewAgreement)
+	{
+		if (deposit < CC_MARKER_VALUE)
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required deposit in proposal is too low");
+
+		opret = EncodeAgreementSigningOpRet(AGREEMENTCC_VERSION,proposaltxid);
+
+		if (AddNormalinputs2(mtx, txfee + payment + deposit, 60) > 0) // vin.0 to vin.2+*: normal input
+		{
+			// vin.1: baton input from proposal
+			GetCCaddress1of2(cp, mutualCCaddress, srcpub, mypk);
+			mtx.vin.push_back(CTxIn(proposaltxid,0,CScript()));
+			Myprivkey(mypriv);
+			CCaddr1of2set(cp, srcpub, mypk, mypriv, mutualCCaddress);
+
+			// vout.0: event log baton output to srcpub/destpub CC 1of2 address
+			mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, srcpub, mypk));
+			// vout.1: deposit / activity marker to global CC pubkey
+			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, deposit, GetUnspendable(cp, NULL))); 
+			// vout.2: payment to proposal's srcpub normal address
+			mtx.vout.push_back(CTxOut(CC_MARKER_VALUE + payment, CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG));
+			// vout.3: marker to proposal's srcpub CC address
+			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, srcpub)); 
+			// vout.4: marker to proposal's destpub CC address
+			mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, mypk)); 
+			if (arbitratorpub.IsFullyValid())
+				// vout.5 (optional): marker to proposal's arbitratorpub CC address
+				mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, arbitratorpub)); 
+
+			return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+		}
+
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+	}
+
+	// Find the specified agreement.
+	if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
+	DecodeAgreementOpRet(agreementtx.vout.back().scriptPubKey) != 'c')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement transaction not found or is invalid");
+
+	// Check if agreement is still active, by checking if its deposit has been spent or not.
+	else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is no longer active");
+
+	// Verify that the agreement is not currently suspended.
+	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp),latesttx,hashBlock) != 0 &&
+	latesttx.vout.size() > 0 &&
+	(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
+	{
+		if (latestfuncid == 'd')
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is currently suspended");
+	}
+	else
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't find latest event for referenced agreement");
+
+	// Get the agreement's offerorpub/signerpub/arbitratorpub, and total deposit
+	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,totaldeposit,disputefee,refagreementtxid);
+
+	// Check if the proposal source/destination pubkeys match the offeror/signer pubkeys of the referenced agreement.
+	if (!(srcpub == offerorpub && destpub == signerpub) && !(srcpub == signerpub && destpub == offerorpub))
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Proposal source/destination pubkeys don't match offeror/signer pubkeys of referenced agreement");
+
+	// If deposit in proposal is < 0, create 'u' type transaction. (contract update)
+	else if (deposit < 0)
+	{
+		opret = EncodeAgreementUpdateOpRet(AGREEMENTCC_VERSION,agreementtxid,proposaltxid);
+
+		if (AddNormalinputs2(mtx, txfee + payment, 60) > 0) // vin.0 to vin.3+*: normal input
+		{
+			GetCCaddress1of2(cp, mutualCCaddress, srcpub, mypk);
+			// vin.1: baton input from latest agreement event log entry
+			mtx.vin.push_back(CTxIn(latesttx.GetHash(),0,CScript()));
+			// vin.2: baton input from proposal
+			mtx.vin.push_back(CTxIn(proposaltxid,0,CScript()));
+			Myprivkey(mypriv);
+			CCaddr1of2set(cp, srcpub, mypk, mypriv, mutualCCaddress);
+
+			// vout.0: event log baton output to srcpub/destpub CC 1of2 address
+			mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, srcpub, mypk));
+			// vout.1: payment to proposal's srcpub normal address
+			mtx.vout.push_back(CTxOut(CC_MARKER_VALUE + payment, CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG));
+
+			return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+		}
+
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+	}
+
+	// If deposit in proposal is >= 0, create 't' type transaction. (contract closure)
+	else
+	{
+		if (deposit > totaldeposit)
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required deposit cut cannot exceed total agreement deposit");
+
+		opret = EncodeAgreementCloseOpRet(AGREEMENTCC_VERSION,agreementtxid,proposaltxid,deposit);
+
+		if (AddNormalinputs2(mtx, txfee + payment, 60) > 0) // vin.0 to vin.4+*: normal input
+		{
+			GetCCaddress1of2(cp, mutualCCaddress, srcpub, mypk);
+			// vin.1: baton input from latest agreement event log entry
+			mtx.vin.push_back(CTxIn(latesttx.GetHash(),0,CScript()));
+			// vin.2: baton input from proposal
+			mtx.vin.push_back(CTxIn(proposaltxid,0,CScript()));
+			// vin.3: deposit from agreement
+			mtx.vin.push_back(CTxIn(agreementtxid,1,CScript()));
+			Myprivkey(mypriv);
+			CCaddr1of2set(cp, srcpub, mypk, mypriv, mutualCCaddress);
+
+			// vout.0: depositcut + payment to proposal's srcpub normal address
+			mtx.vout.push_back(CTxOut(deposit + payment, CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG));
+
+			return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+		}
+
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+	}
+}
+
+// Transaction constructor for agreementdispute rpc.
+// Creates transaction with 'd' function id.
+UniValue AgreementDispute(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,std::string disputeinfo,bool bFinalDispute)
+{
+	CTransaction agreementtx,latesttx;
+	CPubKey mypk,destpub,offerorpub,signerpub,arbitratorpub;
+	int64_t deposit,disputefee;
+	uint8_t version,mypriv[32],latestfuncid;
+	int32_t vini,height,retcode;
+	uint256 refagreementtxid,batontxid,hashBlock;
+	char mutualCCaddress[65];
+	CScript opret;
+
+	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
+	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
+
+	// Checking passed parameters.
+	if (disputeinfo.size() > 256)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Dispute information must be up to 256 characters");
+	
+	// Find the specified agreement.
+	else if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
+	DecodeAgreementOpRet(agreementtx.vout.back().scriptPubKey) != 'c')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement transaction not found or is invalid");
+
+	// Check if agreement is still active, by checking if its deposit has been spent or not.
+	else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is no longer active");
+
+	// Verify that the agreement is not currently suspended.
+	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp),latesttx,hashBlock) != 0 &&
+	latesttx.vout.size() > 0 &&
+	(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
+	{
+		if (latestfuncid == 'd')
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is currently suspended");
+	}
+	else
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't find latest event for referenced agreement");
+
+	// Check if it contains an arbitrator pubkey. (aka if disputes are enabled)
+	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+	if (!(arbitratorpub.IsValid()))
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement arbitrator pubkey invalid or unspecified, disputes are disabled");
+
+	// Check if mypk is eligible for creating a dispute.
+	if (mypk != offerorpub && mypk != signerpub)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Your pubkey is not eligible for opening a dispute for this agreement");
+
+	if (mypk == offerorpub) destpub = signerpub;
+	else destpub = offerorpub;
+
+	opret = EncodeAgreementDisputeOpRet(AGREEMENTCC_VERSION,agreementtxid,mypk,destpub,disputeinfo,bFinalDispute);
+	
+	if (AddNormalinputs2(mtx, txfee + disputefee, 60) > 0) // vin.2+*: normal input
+	{
+		GetCCaddress1of2(cp, mutualCCaddress, destpub, mypk);
+		// vin.1: baton input from latest agreement event log entry
+		mtx.vin.push_back(CTxIn(latesttx.GetHash(),0,CScript()));
+		Myprivkey(mypriv);
+		CCaddr1of2set(cp, destpub, mypk, mypriv, mutualCCaddress);
+		
+		// vout.0: event log baton output + disputefee to arbitratorpub CC address
+		mtx.vout.push_back(MakeCC1vout(EVAL_AGREEMENTS, CC_MARKER_VALUE + disputefee, arbitratorpub));
+		
+		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+	}
+
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+}
+
+// Transaction constructor for agreementresolve rpc.
+// Creates transaction with 'r' function id.
+UniValue AgreementResolve(const CPubKey& pk,uint64_t txfee,uint256 disputetxid,int64_t depositcut,std::string resolutioninfo)
+{
+	CTransaction disputetx,agreementtx;
+	CPubKey mypk,offerorpub,signerpub,arbitratorpub,srcpub,destpub;
+	int64_t deposit,disputefee;
+	uint8_t version;
+	uint256 hashBlock,agreementtxid,refagreementtxid,batontxid;
+	int32_t vini,height,retcode;
+	CScript opret;
+	std::string disputeinfo;
+	char arbCCaddress[65];
+	bool bFinalDispute;
+
+	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
+	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
+
+	// Checking passed parameters.
+	if (resolutioninfo.size() > 256)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Dispute resolution info must be up to 256 characters");
+
+	// Get the dispute transaction.
+	else if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
+	DecodeAgreementOpRet(disputetx.vout.back().scriptPubKey) != 'd')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced dispute transaction not found or is invalid");
+
+	// Get dispute srcpub and destpub pubkeys.
+	DecodeAgreementDisputeOpRet(disputetx.vout.back().scriptPubKey,version,agreementtxid,srcpub,destpub,disputeinfo,bFinalDispute);
+
+	// Verify that the dispute is valid. (points to correct agreementtxid, srcpub/destpub is correct etc.)
+	if (FindLatestAgreementEventTx(agreementtxid,cp) != disputetxid)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced dispute is not the latest event for the related agreement");
+
+	// Find the specified agreement.
+	else if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
+	DecodeAgreementOpRet(agreementtx.vout.back().scriptPubKey) != 'c')
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement from dispute not found or is invalid");
+
+	// Check if agreement is still active, by checking if its deposit has been spent or not.
+	else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement from dispute is no longer active");
+	
+	// Get the agreement data.
+	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+	if (!(arbitratorpub.IsValid()))
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement arbitrator pubkey invalid or unspecified, disputes are disabled");
+	
+	else if (mypk != arbitratorpub)
+		return eval->Invalid("You are not the arbitrator of the specified agreement");
+	
+	// Verify that depositcut <= deposit.
+	else if (depositcut > deposit)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Deposit cut cannot exceed total deposit amount");
+	
+	// If depositcut < 0, then the deposit vout from the agreement must not be spent.
+	else if (depositcut < 0 && bFinalDispute)
+		return eval->Invalid("Cannot cancel final dispute for 'r' type transaction!");
+	
+	opret = EncodeAgreementDisputeResolveOpRet(AGREEMENTCC_VERSION,agreementtxid,disputetxid,depositcut,resolutioninfo);
+	
+	if (AddNormalinputs2(mtx, txfee, 5) > 0) // vin.2/3+*: normal input
+	{
+		GetCCaddress(cp, arbCCaddress, mypk);
+		// vin.1: baton input from latest agreement event log entry + disputefee
+		mtx.vin.push_back(CTxIn(disputetxid,0,CScript()));
+		if (depositcut >= 0) // if deposit was taken...
+		{
+			// vin.2 (optional): deposit from agreement
+			mtx.vin.push_back(CTxIn(agreementtxid,1,CScript()));
+
+			// vout.0: depositcut to dispute's srcpub normal address, assuming depositcut != 0
+			if (depositcut > 0)
+				mtx.vout.push_back(CTxOut(depositcut, CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG));
+			// vout.1: (deposit - depositcut) to dispute's destpub normal address, assuming depositcut != deposit
+			if (depositcut != deposit)
+				mtx.vout.push_back(CTxOut((deposit - depositcut), CScript() << ParseHex(HexStr(destpub)) << OP_CHECKSIG));
+		}
+		else // if deposit was not taken...
+		{
+			// vout.0: event log baton output to srcpub/destpub CC 1of2 address
+			mtx.vout.push_back(MakeCC1of2vout(EVAL_AGREEMENTS, CC_MARKER_VALUE, srcpub, destpub));
+		}
+		
+		return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
+	}
+
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Error adding normal inputs, check if you have available funds");
+}
+
+// Transaction constructor for agreementunlock rpc.
+// Creates transaction with 'n' function id.
+UniValue AgreementUnlock(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 unlocktxid)
+{
+	// TBD
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "agreementunlock not done yet");
+}
+
+// --- RPC implementations for transaction analysis ---
+
+UniValue AgreementInfo(uint256 txid)
+{
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "not done yet");
+}
+
+UniValue AgreementList()
+{
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "not done yet");
+}
 /*UniValue AgreementInfo(uint256 txid)
 {
 	UniValue result(UniValue::VOBJ), members(UniValue::VOBJ), data(UniValue::VOBJ);
