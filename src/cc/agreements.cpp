@@ -449,11 +449,12 @@ uint256 FindLatestAgreementEventTx(uint256 agreementtxid, struct CCcontract_info
 // Returns true if proposal is valid, otherwise returns eval->Invalid().
 bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTransaction& proposaltx,bool bStrict)
 {
+	CTransaction refagreementtx;
 	uint8_t version;
 	int32_t numvins, numvouts;
 	int64_t payment, deposit, disputefee, dummyint64;
 	CPubKey srcpub, destpub, arbitratorpub, offerorpub, signerpub, refarbitratorpub;
-	uint256 agreementhash, refagreementtxid, dummyuint256;
+	uint256 agreementhash, refagreementtxid, hashBlock, dummyuint256;
 	char mutualCCaddress[65], srcmarker[65], destmarker[65], arbmarker[65];
 	bool bNewAgreement;
 	std::string agreementname;
@@ -481,7 +482,7 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 	GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
 
 	// Verify that vout0 is an Agreements vout and is sent to srcpub/destpub 1of2 CC address.
-	else if (ConstrainVout(proposaltx.vout[0],1,mutualCCaddress,0)==0)
+	if (ConstrainVout(proposaltx.vout[0],1,mutualCCaddress,0)==0)
 		return eval->Invalid("vout.0 is agreement CC baton vout to srcpub for 'p' type transaction!");
 
 	// If bStrict is set to true, we also check the proposal data and other vouts.
@@ -1344,12 +1345,12 @@ UniValue AgreementCreate(const CPubKey& pk,uint64_t txfee,CPubKey destpub,std::s
 // Creates transaction with 'p' function id, with bNewAgreement set to false and deposit set to -1.
 UniValue AgreementUpdate(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 agreementhash,std::string agreementname,int64_t payment)
 {
-	uint8_t latestfuncid,dummyuint256;
+	uint8_t latestfuncid;
 	CPubKey mypk,destpub,offerorpub,signerpub,arbitratorpub;
 	CTransaction agreementtx,latesttx;
 	int64_t dummyint64;
 	int32_t vini,height,retcode;
-	uint256 hashBlock, batontxid;
+	uint256 hashBlock,batontxid,dummyuint256;
 	CScript opret;
 
 	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
@@ -1410,12 +1411,12 @@ UniValue AgreementUpdate(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,
 // Creates transaction with 'p' function id, with bNewAgreement set to false and deposit set to user defined amount (indicating a proposal to close agreement).
 UniValue AgreementClose(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,uint256 agreementhash,int64_t depositcut,std::string agreementname,int64_t payment)
 {
-	uint8_t latestfuncid,dummyuint256;
+	uint8_t latestfuncid;
 	CPubKey mypk,destpub,offerorpub,signerpub,arbitratorpub;
 	CTransaction agreementtx,latesttx;
 	int64_t dummyint64,deposit;
 	int32_t vini,height,retcode;
-	uint256 hashBlock, batontxid;
+	uint256 hashBlock,batontxid,dummyuint256;
 	CScript opret;
 
 	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
@@ -1819,7 +1820,7 @@ UniValue AgreementResolve(const CPubKey& pk,uint64_t txfee,uint256 disputetxid,i
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement arbitrator pubkey invalid or unspecified, disputes are disabled");
 	
 	else if (mypk != arbitratorpub)
-		return eval->Invalid("You are not the arbitrator of the specified agreement");
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "You are not the arbitrator of the specified agreement");
 	
 	// Verify that depositcut <= deposit.
 	else if (depositcut > deposit)
@@ -1827,7 +1828,7 @@ UniValue AgreementResolve(const CPubKey& pk,uint64_t txfee,uint256 disputetxid,i
 	
 	// If depositcut < 0, then the deposit vout from the agreement must not be spent.
 	else if (depositcut < 0 && bFinalDispute)
-		return eval->Invalid("Cannot cancel final dispute for 'r' type transaction!");
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Cannot cancel dispute marked as final");
 	
 	opret = EncodeAgreementDisputeResolveOpRet(AGREEMENTCC_VERSION,agreementtxid,disputetxid,depositcut,resolutioninfo);
 	
