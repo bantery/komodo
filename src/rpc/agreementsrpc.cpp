@@ -80,13 +80,15 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
         throw runtime_error("Agreement hash empty or invalid\n");
     }
 
-	deposit = AmountFromValue(params[3]);
-    if (deposit < 10000)
+    deposit = atoll(params[3].get_str().c_str()) * COIN;
+    if (deposit >= 0)
+        deposit = AmountFromValue(params[3]);
+    else
     {
         Unlock2NSPV(mypk);
         throw runtime_error("Required deposit too low\n");
     }
-
+    
     if (params.size() >= 5)
         arbitratorpub = pubkey2pk(ParseHex(params[4].get_str().c_str()));
 
@@ -94,13 +96,16 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	if (params.size() >= 6)
     {
         if (arbitratorpub.IsFullyValid())
-            disputefee = AmountFromValue(params[5]);
-        
-        if (disputefee != 0 && disputefee < 10000)
         {
-			Unlock2NSPV(mypk);
-			throw runtime_error("Dispute fee too low\n");
-		}
+            disputefee = atoll(params[5].get_str().c_str()) * COIN;
+            if (disputefee == 0 || disputefee >= 10000)
+                disputefee = AmountFromValue(params[5]);
+            else
+            {
+                Unlock2NSPV(mypk);
+                throw runtime_error("Dispute fee too low\n");
+            }
+        }
     }
 
     if (params.size() >= 7)
@@ -109,12 +114,14 @@ UniValue agreementcreate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	payment = 0;
 	if (params.size() == 8)
     {
-        payment = AmountFromValue(params[7]);
-		if (payment != 0 && payment < 10000)
+        payment = atoll(params[7].get_str().c_str()) * COIN;
+        if (payment == 0 || payment >= 10000)
+            payment = AmountFromValue(params[7]);
+        else
         {
-			Unlock2NSPV(mypk);
-			throw runtime_error("Required prepayment too low\n");
-		}
+            Unlock2NSPV(mypk);
+            throw runtime_error("Required prepayment too low\n");
+        }
     }
 	
 	result = AgreementCreate(mypk,0,destpub,agreementname,agreementhash,deposit,arbitratorpub,disputefee,refagreementtxid,payment);
@@ -167,12 +174,14 @@ UniValue agreementupdate(const UniValue& params, bool fHelp, const CPubKey& mypk
 	payment = 0;
 	if (params.size() == 4)
     {
-        payment = AmountFromValue(params[3]);
-		if (payment != 0 && payment < 10000)
+        payment = atoll(params[3].get_str().c_str()) * COIN;
+        if (payment == 0 || payment >= 10000)
+            payment = AmountFromValue(params[3]);
+        else
         {
-			Unlock2NSPV(mypk);
-			throw runtime_error("Required payment too low\n");
-		}
+            Unlock2NSPV(mypk);
+            throw runtime_error("Required payment too low\n");
+        }
     }
 
 	result = AgreementUpdate(mypk,0,agreementtxid,agreementhash,agreementname,payment);
@@ -212,11 +221,13 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("Agreement hash empty or invalid\n");
     }
 
-    depositcut = AmountFromValue(params[2]);
-    if (depositcut < 0)
+    depositcut = atoll(params[2].get_str().c_str()) * COIN;
+    if (depositcut >= 0)
+        depositcut = AmountFromValue(params[2]);
+    else
     {
         Unlock2NSPV(mypk);
-        throw runtime_error("Required deposit cut too low\n");
+        throw runtime_error("Required deposit cut can't be negative\n");
     }
 
     if (params.size() >= 4)
@@ -232,12 +243,14 @@ UniValue agreementclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
 	payment = 0;
 	if (params.size() == 5)
     {
-        payment = AmountFromValue(params[4]);
-		if (payment != 0 && payment < 10000)
+        payment = atoll(params[4].get_str().c_str()) * COIN;
+        if (payment == 0 || payment >= 10000)
+            payment = AmountFromValue(params[4]);
+        else
         {
-			Unlock2NSPV(mypk);
-			throw runtime_error("Required payment too low\n");
-		}
+            Unlock2NSPV(mypk);
+            throw runtime_error("Required payment too low\n");
+        }
     }
 
     result = AgreementClose(mypk,0,agreementtxid,agreementhash,depositcut,agreementname,payment);
@@ -384,8 +397,10 @@ UniValue agreementresolve(const UniValue& params, bool fHelp, const CPubKey& myp
 		Unlock2NSPV(mypk);
         throw runtime_error("Dispute transaction id invalid\n");
     }
-
-    depositcut = AmountFromValue(params[1]);
+    
+    depositcut = atoll(params[1].get_str().c_str()) * COIN;
+    if (depositcut >= 0)
+        depositcut = AmountFromValue(params[1]);
 
 	if (params.size() == 3)
     {
