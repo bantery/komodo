@@ -427,7 +427,7 @@ uint256 FindLatestAgreementEventTx(uint256 agreementtxid, struct CCcontract_info
 		GetCCaddress(cp, arbCCaddress, arbitratorpub);
 
 		// Iterate through vout0 batons while we're finding valid Agreements transactions that spent the last baton.
-		while ((IsAgreementsvout(cp,sourcetx,0,mutualCCaddress) != CC_MARKER_VALUE || IsAgreementsvout(cp,sourcetx,0,arbCCaddress) != 0) &&
+		while ((IsAgreementsvout(cp,sourcetx,0,mutualCCaddress) == CC_MARKER_VALUE || IsAgreementsvout(cp,sourcetx,0,arbCCaddress) != 0) &&
 		
 		// Check if vout0 was spent.
 		(retcode = CCgetspenttxid(batontxid, vini, height, sourcetx.GetHash(), 0)) == 0 &&
