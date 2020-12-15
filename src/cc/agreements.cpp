@@ -342,7 +342,7 @@ bool ValidateAgreementsCCVin(struct CCcontract_info *cp,Eval* eval,const CTransa
 	
 	// if prevVout >= 0, validate spent vout number.
 	else if (prevVout>=0 && tx.vin[index].prevout.n!=prevVout)
-		return eval->Invalid("vin."+std::to_string(index)+" invalid prevout number, expected "+std::to_string(prevVout)+", got"+std::to_string(tx.vin[index].prevout.n)+"!");
+		return eval->Invalid("vin."+std::to_string(index)+" invalid prevout number, expected "+std::to_string(prevVout)+", got "+std::to_string(tx.vin[index].prevout.n)+"!");
 
 	// Validate previous txid.
 	else if (prevTx.GetHash()!=prevtxid) 
@@ -975,7 +975,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return (false);
 
 				// Verify that vin.3 is spending the deposit from the specified agreement.
-				else if (ValidateAgreementsCCVin(cp,eval,tx,3,0,agreementtxid,globalCCaddress,deposit) == 0)
+				else if (ValidateAgreementsCCVin(cp,eval,tx,3,1,agreementtxid,globalCCaddress,deposit) == 0)
 					return (false);
 
 				// Contract closures shouldn't have any additional CC inputs.
