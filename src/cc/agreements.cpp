@@ -231,7 +231,7 @@ CScript EncodeAgreementDisputeResolveOpRet(uint8_t version, uint256 agreementtxi
 	opret << OP_RETURN << E_MARSHAL(ss << evalcode << funcid << version << agreementtxid << disputetxid << depositcut << resolutioninfo);
 	return(opret);
 }
-uint8_t DecodeAgreementDisputeResolveOpRet(CScript scriptPubKey, uint8_t &version, uint256 agreementtxid, uint256 disputetxid, int64_t depositcut, std::string resolutioninfo)
+uint8_t DecodeAgreementDisputeResolveOpRet(CScript scriptPubKey, uint8_t &version, uint256 &agreementtxid, uint256 &disputetxid, int64_t &depositcut, std::string &resolutioninfo)
 {
 	std::vector<uint8_t> vopret; uint8_t evalcode, funcid;
 	GetOpReturnData(scriptPubKey, vopret);
