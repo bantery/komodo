@@ -669,8 +669,8 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return (false);
 
 				// Verify that the proposal hasn't been spent already.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0)
-					return eval->Invalid("Cancelled proposal transaction has already been spent!");
+				//else if ((retcode = CCgetspenttxid(batontxid,vini,height,proposaltxid,0)) == 0 && height <= chainActive.Height())
+				//	return eval->Invalid("Cancelled proposal transaction has already been spent!");
 
 				// Get the data from the proposaltxid transaction's op_return.
 				DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,srcpub,destpub,
@@ -741,8 +741,8 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Accepted proposal is not for creating new agreement!");
 				
 				// Verify that the proposal hasn't been spent already.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0)
-					return eval->Invalid("Accepted proposal transaction has already been spent!");
+				//else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0 && height <= chainActive.Height())
+				//	return eval->Invalid("Accepted proposal transaction has already been spent!");
 				
 				GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
 				Getscriptaddress(srcnormaladdress,CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG);
@@ -811,7 +811,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Specified agreement not found for 'u' type transaction!");
 
 				// Verify that the agreement is still active by checking if its deposit has been spent or not.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0 && height <= chainActive.Height())
 					return eval->Invalid("Agreement specified in update transaction is no longer active!");
 
 				// Verify that the agreement is not currently suspended.
@@ -850,8 +850,8 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Invalid deposit amount for 'u' type transaction, should be -1 or less!");
 				
 				// Verify that the proposal hasn't been spent already.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0)
-					return eval->Invalid("Accepted proposal transaction has already been spent!");
+				//else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0 && height <= chainActive.Height())
+				//	return eval->Invalid("Accepted proposal transaction has already been spent!");
 				
 				GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
 				Getscriptaddress(srcnormaladdress,CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG);
@@ -906,7 +906,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Specified agreement not found for 't' type transaction!");
 
 				// Verify that the agreement is still active by checking if its deposit has been spent or not.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0 && height <= chainActive.Height())
 					return eval->Invalid("Agreement specified in closure transaction is no longer active!");
 
 				// Verify that the agreement is not currently suspended.
@@ -944,8 +944,8 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Accepted proposal is not for updating existing agreement!");
 
 				// Verify that the proposal hasn't been spent already.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0)
-					return eval->Invalid("Accepted proposal transaction has already been spent!");
+				//else if ((retcode = CCgetspenttxid(batontxid, vini, height, proposaltxid, 0)) == 0 && height <= chainActive.Height())
+				//	return eval->Invalid("Accepted proposal transaction has already been spent!");
 				
 				// Verify that depositcut is <= deposit, and that it matches with what's in the proposal.
 				else if (depositcut != proposeddepositcut)
@@ -1013,7 +1013,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Specified agreement not found for 'd' type transaction!");
 
 				// Verify that the agreement is still active by checking if its deposit has been spent or not.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0 && height <= chainActive.Height())
 					return eval->Invalid("Agreement specified in dispute transaction is no longer active!");
 				
 				// Verify that the agreement is not currently suspended.
@@ -1089,7 +1089,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Specified agreement not found for 'r' type transaction!");
 
 				// Verify that the agreement is still active by checking if its deposit has been spent or not.
-				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0)
+				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0 && height <= chainActive.Height())
 					return eval->Invalid("Agreement specified in dispute transaction is no longer active!");
 
 				// Get the agreement deposit value.
