@@ -1435,7 +1435,7 @@ UniValue AgreementClose(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,u
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement name must be up to 64 characters");
 	if (agreementhash == zeroid)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement hash must be a valid sha256 hash");
-	if (depositcut < CC_MARKER_VALUE)
+	if (depositcut < 0)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required depositcut must be positive");
 	if (payment < 0)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Required payment must be positive");
