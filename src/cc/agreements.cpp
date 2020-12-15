@@ -438,7 +438,7 @@ uint256 FindLatestAgreementEventTx(uint256 agreementtxid, struct CCcontract_info
 		(funcid = DecodeAgreementOpRet(batontx.vout.back().scriptPubKey)) != 0 &&
 		
 		// If bCheckBlockHeight is true, check if the blockheight of the batontx is below or equal to current block height.
-		(bCheckBlockHeight && komodo_blockheight(hashBlock) <= chainActive.Height()))
+		(!bCheckBlockHeight || komodo_blockheight(hashBlock) <= chainActive.Height()))
 		{
 			sourcetx = batontx;
 		}
