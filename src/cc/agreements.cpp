@@ -281,13 +281,13 @@ uint8_t DecodeAgreementOpRet(const CScript scriptPubKey)
 		{
 			case 'p':
 				return DecodeAgreementProposalOpRet(scriptPubKey, dummyuint8, dummypubkey, dummypubkey, dummystring, dummyuint256, dummyint64, dummyint64, dummyuint256, dummybool, dummypubkey, dummyint64);
-			case 't':
+			case 's':
 				return DecodeAgreementProposalCloseOpRet(scriptPubKey, dummyuint8, dummyuint256, dummypubkey, dummystring);
 			case 'c':
 				return DecodeAgreementSigningOpRet(scriptPubKey, dummyuint8, dummyuint256);
 			case 'u':
 				return DecodeAgreementUpdateOpRet(scriptPubKey, dummyuint8, dummyuint256, dummyuint256);
-			case 's':
+			case 't':
 				return DecodeAgreementCloseOpRet(scriptPubKey, dummyuint8, dummyuint256, dummyuint256, dummyint64);
 			case 'd':
 				return DecodeAgreementDisputeOpRet(scriptPubKey, dummyuint8, dummyuint256, dummypubkey, dummypubkey, dummystring, dummybool);
