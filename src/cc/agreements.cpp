@@ -1111,7 +1111,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 					return eval->Invalid("Specified dispute txid is not latest event for this agreement!");
 
 				// Get dispute srcpub and destpub pubkeys.
-				DecodeAgreementDisputeOpRet(disputetx.vout[numvouts-1].scriptPubKey,version,disputeagreementtxid,srcpub,destpub,disputeinfo,bFinalDispute);
+				DecodeAgreementDisputeOpRet(disputetx.vout.back().scriptPubKey,version,disputeagreementtxid,srcpub,destpub,disputeinfo,bFinalDispute);
 
 				if (disputeagreementtxid != agreementtxid)
 					return eval->Invalid("Dispute and dispute resolution are referring to different agreement txids!");
