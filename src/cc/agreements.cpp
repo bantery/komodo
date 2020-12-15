@@ -1687,7 +1687,7 @@ UniValue AgreementAccept(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid)
 			CCaddr1of2set(cp, srcpub, mypk, mypriv, mutualCCaddress);
 
 			// vout.0: depositcut + payment to proposal's srcpub normal address
-			mtx.vout.push_back(CTxOut(deposit + payment, CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG));
+			mtx.vout.push_back(CTxOut(CC_MARKER_VALUE + deposit + payment, CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG));
 
 			return FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,opret);
 		}
