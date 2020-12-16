@@ -1115,7 +1115,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				fprintf(stderr,"FindLatestAgreementEventTx\n"); //TODO remove
 
 				// Verify that the dispute is valid. (points to correct agreementtxid, srcpub/destpub is correct etc.)
-				else if (FindLatestAgreementEventTx(agreementtxid,cp,true) != disputetxid)
+				if (FindLatestAgreementEventTx(agreementtxid,cp,true) != disputetxid)
 					return eval->Invalid("Specified dispute txid is not latest event for this agreement!");
 
 				fprintf(stderr,"DecodeAgreementDisputeOpRet\n"); //TODO remove
