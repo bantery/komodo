@@ -2024,7 +2024,7 @@ UniValue AgreementInfo(uint256 txid)
 
 				result.push_back(Pair("claimant_pubkey",pubkey33_str(str,(uint8_t *)&srcpub)));
 				result.push_back(Pair("defendant_pubkey",pubkey33_str(str,(uint8_t *)&destpub)));
-
+				
 				result.push_back(Pair("final_dispute",bFinalDispute ? "true" : "false"));
 
 				if (!(disputeinfo.empty()))
@@ -2037,6 +2037,8 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
 				result.push_back(Pair("resolved_dispute",disputetxid.GetHex()));
 
+				GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+				
 				if (depositcut >= 0)
 				{
 					result.push_back(Pair("agreement_closed","true"));
