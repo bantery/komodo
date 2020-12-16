@@ -1193,7 +1193,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				// TBD
 				// OP_RETURN EVAL_AGREEMENTS 'n' version agreementtxid unlocktxid
 				return eval->Invalid("Unexpected Agreements 'n' function id, not built yet!");
-		
+
 			default:
 				fprintf(stderr,"unexpected agreements funcid (%c)\n",funcid);
 				return eval->Invalid("Unexpected Agreements function id!");
@@ -1877,235 +1877,191 @@ UniValue AgreementUnlock(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,
 
 UniValue AgreementInfo(uint256 txid)
 {
-	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "not done yet");
+	UniValue result(UniValue::VOBJ);
+	char str[67];
+	uint256 hashBlock,agreementhash,agreementtxid,disputetxid,refagreementtxid;
+	uint8_t version,funcid;
+	CPubKey srcpub,destpub,arbitratorpub,offerorpub,signerpub;
+	std::string agreementname,cancelinfo,disputeinfo,resolutioninfo;
+	int32_t numvouts;
+	int64_t deposit,depositcut,payment,disputefee;
+	bool bNewAgreement,bFinalDispute;
+
+	if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
+	(funcid = DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey)) != 0)
+	{
+		// Only show info for confirmed transactions.
+		if (KOMODO_NSPV_FULLNODE && hashBlock.IsNull())
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "The transaction is still in mempool");
+		
+		result.push_back(Pair("result","success"));
+		result.push_back(Pair("txid",txid.GetHex()));
+
+		switch (funcid)
+		{
+			case 'p': // proposal
+				result.push_back(Pair("type","proposal"));
+				DecodeAgreementProposalOpRet(tx.vout[numvouts-1].scriptPubKey,version,srcpub,destpub,agreementname,agreementhash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee);
+				result.push_back(Pair("source_pubkey",pubkey33_str(str,(uint8_t *)&srcpub)));
+				result.push_back(Pair("destination_pubkey",pubkey33_str(str,(uint8_t *)&destpub)));
+				
+				if (bNewAgreement)
+				{
+					result.push_back(Pair("proposal_type","agreement_create"));
+					
+					result.push_back(Pair("proposed_agreement_name",agreementname));
+					result.push_back(Pair("proposed_agreement_hash",agreementhash.GetHex()));
+
+					result.push_back(Pair("required_deposit",(double)deposit/COIN));
+
+					if (payment > 0)
+						result.push_back(Pair("required_payment",(double)payment/COIN));
+					
+					if (arbitratorpub.IsValid())
+					{
+						result.push_back(Pair("disputes_enabled","true"));
+						result.push_back(Pair("arbitrator_pubkey",pubkey33_str(str,(uint8_t *)&arbitratorpub)));
+						result.push_back(Pair("dispute_fee",(double)disputefee/COIN));
+					}
+					else
+						result.push_back(Pair("disputes_enabled","false"));
+					
+					if (refagreementtxid != zeroid)
+						result.push_back(Pair("reference_agreement",refagreementtxid.GetHex()));
+				}
+				else
+				{
+					if (deposit < 0)
+						result.push_back(Pair("proposal_type","agreement_update"));
+					else
+						result.push_back(Pair("proposal_type","agreement_close"));
+
+					result.push_back(Pair("reference_agreement",refagreementtxid.GetHex()));
+
+					if (!(agreementname.empty()))
+						result.push_back(Pair("proposed_agreement_name",agreementname));
+					result.push_back(Pair("proposed_agreement_hash",agreementhash.GetHex()));
+					
+					if (deposit >= 0)
+						result.push_back(Pair("deposit_cut_requested",(double)deposit/COIN));
+
+					if (payment > 0)
+						result.push_back(Pair("required_payment",(double)payment/COIN));
+				}
+
+				// TODO check status/etc here.
+
+				break;
+			case 's': // proposal cancel
+				result.push_back(Pair("type","proposal_cancel"));
+				DecodeAgreementProposalCloseOpRet(tx.vout[numvouts-1].scriptPubKey,version,proposaltxid,srcpub,cancelinfo);
+				
+				result.push_back(Pair("cancelled_proposal",proposaltxid.GetHex()));
+				result.push_back(Pair("source_pubkey",pubkey33_str(str,(uint8_t *)&srcpub)));
+				if (!(cancelinfo.empty()))
+					result.push_back(Pair("cancel_info",cancelinfo));
+				
+				break;
+			case 'c': // agreement
+				result.push_back(Pair("type","agreement"));
+				proposaltxid = GetAcceptedProposalData(txid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+
+				// TODO get latest name and hash here, plus revisions
+
+				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
+				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
+				if (arbitratorpub.IsValid())
+				{
+					result.push_back(Pair("arbitrator_pubkey",pubkey33_str(str,(uint8_t *)&arbitratorpub)));
+					result.push_back(Pair("dispute_fee",(double)disputefee/COIN));
+				}
+
+				result.push_back(Pair("deposit",(double)deposit/COIN));
+
+				// TODO get status and latest events (?) here
+
+				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
+				if (refagreementtxid != zeroid)
+					result.push_back(Pair("reference_agreement",refagreementtxid.GetHex()));
+				
+				break;
+			case 'u': // update
+				result.push_back(Pair("type","agreement_update"));
+				proposaltxid = GetAcceptedProposalData(txid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,agreementtxid);
+				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
+				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
+
+				// TODO get update name and hash here, plus revision number
+
+				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
+				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
+
+				break;
+			case 't': // close
+				result.push_back(Pair("type","agreement_closure"));
+
+				proposaltxid = GetAcceptedProposalData(txid,offerorpub,signerpub,arbitratorpub,depositcut,disputefee,agreementtxid);
+				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
+				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
+
+				// TODO get update name and hash here, plus revision number
+
+				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
+				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
+
+				GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+
+				result.push_back(Pair("deposit_cut_to_offeror",(double)depositcut/COIN));
+				result.push_back(Pair("deposit_cut_to_signer",(double)(deposit-depositcut)/COIN));
+				result.push_back(Pair("total_deposit",(double)deposit/COIN));
+
+				break;
+			case 'd': // dispute
+				result.push_back(Pair("type","agreement_dispute"));
+				DecodeAgreementDisputeOpRet(tx.vout[numvouts-1].scriptPubKey,version,agreementtxid,srcpub,destpub,disputeinfo,bFinalDispute);
+				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
+
+				result.push_back(Pair("claimant_pubkey",pubkey33_str(str,(uint8_t *)&srcpub)));
+				result.push_back(Pair("defendant_pubkey",pubkey33_str(str,(uint8_t *)&destpub)));
+
+				result.push_back(Pair("final_dispute",bFinalDispute ? "true" : "false"));
+
+				if (!(disputeinfo.empty()))
+					result.push_back(Pair("dispute_info",disputeinfo));
+
+				break;
+			case 'r': // resolution
+				result.push_back(Pair("type","dispute_resolution"));
+				DecodeAgreementDisputeResolveOpRet(tx.vout[numvouts-1].scriptPubKey,version,agreementtxid,disputetxid,depositcut,resolutioninfo);
+				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
+				result.push_back(Pair("resolved_dispute",disputetxid.GetHex()));
+
+				if (depositcut >= 0)
+				{
+					result.push_back(Pair("agreement_closed","true"));
+					result.push_back(Pair("deposit_cut_to_claimant",(double)depositcut/COIN));
+					result.push_back(Pair("deposit_cut_to_defendant",(double)(deposit-depositcut)/COIN));
+					result.push_back(Pair("total_deposit",(double)deposit/COIN));
+				}
+				else
+					result.push_back(Pair("agreement_closed","false"));
+				
+				break;
+			//case 'n': // unlock
+			//	result.push_back(Pair("type","agreement_unlock"));
+			//	break;
+		}
+		return (result);
+	}
+
+	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "invalid Agreements transaction id");
 }
 
 UniValue AgreementList()
 {
 	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "not done yet");
 }
-/*UniValue AgreementInfo(uint256 txid)
-{
-	UniValue result(UniValue::VOBJ), members(UniValue::VOBJ), data(UniValue::VOBJ);
-	CPubKey CPK_src, CPK_dest, CPK_arbitrator;
-	CTransaction tx, proposaltx;
-	uint256 hashBlock, datahash, proposaltxid, prevproposaltxid, agreementtxid, latesttxid, spendingtxid, dummytxid, pawnshoptxid;
-	std::vector<uint8_t> srcpub, destpub, arbitrator, rewardedpubkey;
-	int32_t numvouts;
-	int64_t payment, disputefee, deposit, totaldeposit, revision;
-	std::string name, CCerror;
-	bool bHasReceiver, bHasArbitrator;
-	uint8_t funcid, version, proposaltype, updatefuncid, spendingfuncid, mypriv[32];
-	char mutualaddr[65];
-	if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
-	(funcid = DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey)) != 0)
-	{
-		// Only show info for confirmed transactions.
-		if (KOMODO_NSPV_FULLNODE && hashBlock.IsNull())
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "the transaction is still in mempool");
-		
-		result.push_back(Pair("result", "success"));
-		result.push_back(Pair("txid", txid.GetHex()));
-		switch (funcid)
-		{
-			case 'p':
-				result.push_back(Pair("type","proposal"));
-				DecodeAgreementProposalOpRet(tx.vout[numvouts-1].scriptPubKey,version,proposaltype,srcpub,destpub,arbitrator,payment,disputefee,deposit,datahash,agreementtxid,prevproposaltxid,name);
-				CPK_src = pubkey2pk(srcpub);
-				CPK_dest = pubkey2pk(destpub);
-				CPK_arbitrator = pubkey2pk(arbitrator);
-				bHasReceiver = CPK_dest.IsFullyValid();
-				bHasArbitrator = CPK_arbitrator.IsFullyValid();
-				members.push_back(Pair("sender",HexStr(srcpub)));
-				if (bHasReceiver)
-					members.push_back(Pair("receiver",HexStr(destpub)));
-				if (payment > 0)
-					data.push_back(Pair("required_payment", (double)payment/COIN));
-				data.push_back(Pair("contract_name",name));
-				data.push_back(Pair("contract_hash",datahash.GetHex()));
-				switch (proposaltype)
-				{
-					case 'p':
-						result.push_back(Pair("proposal_type","contract_create"));
-						if (bHasArbitrator)
-						{
-							members.push_back(Pair("arbitrator",HexStr(arbitrator)));
-							data.push_back(Pair("dispute_fee",(double)disputefee/COIN));
-						}
-						data.push_back(Pair("deposit",(double)deposit/COIN));
-						if (agreementtxid != zeroid)
-							data.push_back(Pair("master_contract_txid",agreementtxid.GetHex()));
-						break;
-					case 'u':
-						result.push_back(Pair("proposal_type","contract_update"));
-						result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-						if (bHasArbitrator)
-						{
-							data.push_back(Pair("new_dispute_fee", (double)disputefee/COIN));
-							GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, disputefee, deposit, datahash, dummytxid, name);
-							GetLatestAgreementUpdate(agreementtxid, latesttxid, updatefuncid);
-							GetAgreementUpdateData(latesttxid, name, datahash, disputefee, deposit, revision);
-							data.push_back(Pair("current_dispute_fee", (double)disputefee/COIN));
-						}
-						break;
-					case 't':
-						result.push_back(Pair("proposal_type","contract_close"));
-						result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-						GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, disputefee, totaldeposit, datahash, dummytxid, name);
-						data.push_back(Pair("deposit_for_sender", (double)deposit/COIN));
-						data.push_back(Pair("deposit_for_receiver", (double)(totaldeposit-deposit)/COIN));
-						data.push_back(Pair("total_deposit", (double)totaldeposit/COIN));
-						break;
-				}
-				result.push_back(Pair("members",members));
-				if (IsProposalSpent(txid, spendingtxid, spendingfuncid))
-				{
-					switch (spendingfuncid)
-					{
-						case 'p':
-							result.push_back(Pair("status","updated"));
-							break;
-						case 'c':
-						case 'u':
-						case 's':
-							result.push_back(Pair("status","accepted"));
-							break;
-						case 't':
-							result.push_back(Pair("status","closed"));
-							break;
-					}
-					result.push_back(Pair("next_txid",spendingtxid.GetHex()));
-				}
-				else
-				{
-					if (bHasReceiver)
-						result.push_back(Pair("status","open"));
-					else
-						result.push_back(Pair("status","draft"));
-				}
-				if (prevproposaltxid != zeroid)
-					result.push_back(Pair("previous_txid",prevproposaltxid.GetHex()));
-				result.push_back(Pair("data",data));
-				break;
-			case 't':
-				result.push_back(Pair("type","proposal cancel"));
-				DecodeAgreementProposalCloseOpRet(tx.vout[numvouts-1].scriptPubKey, version, proposaltxid, srcpub);
-				result.push_back(Pair("source_pubkey",HexStr(srcpub)));
-				result.push_back(Pair("proposal_txid",proposaltxid.GetHex()));
-				break;
-			case 'c':
-				result.push_back(Pair("type","contract"));
-				DecodeAgreementSigningOpRet(tx.vout[numvouts-1].scriptPubKey, version, proposaltxid);
-				GetAgreementInitialData(txid, proposaltxid, srcpub, destpub, arbitrator, disputefee, deposit, datahash, agreementtxid, name);
-				CPK_arbitrator = pubkey2pk(arbitrator);
-				bHasArbitrator = CPK_arbitrator.IsFullyValid();
-				result.push_back(Pair("accepted_txid",proposaltxid.GetHex()));
-				members.push_back(Pair("initiator",HexStr(srcpub)));
-				members.push_back(Pair("recipient",HexStr(destpub)));
-				result.push_back(Pair("deposit",deposit));
-				if (bHasArbitrator)
-				{	
-					members.push_back(Pair("arbitrator",HexStr(arbitrator)));
-				}
-				result.push_back(Pair("members",members));
-				if (agreementtxid != zeroid)
-					data.push_back(Pair("master_contract_txid",agreementtxid.GetHex()));
-				GetLatestAgreementUpdate(txid, latesttxid, updatefuncid);
-				if (latesttxid != txid)
-				{
-					switch (updatefuncid)
-					{
-						case 'u':
-							result.push_back(Pair("status","updated"));
-							break;
-						case 's':
-							result.push_back(Pair("status","closed"));
-							break;
-						case 'd':
-							result.push_back(Pair("status","suspended"));
-							break;
-						case 'r':
-							result.push_back(Pair("status","arbitrated"));
-							break;
-						case 'n':
-							result.push_back(Pair("status","in settlement"));
-							break;
-					}
-					result.push_back(Pair("last_txid",latesttxid.GetHex()));
-				}
-				else
-					result.push_back(Pair("status","active"));
-				GetAgreementUpdateData(latesttxid, name, datahash, disputefee, deposit, revision);
-				data.push_back(Pair("revisions",revision));
-				if (bHasArbitrator)
-					data.push_back(Pair("dispute_fee",(double)disputefee/COIN));
-				data.push_back(Pair("contract_name",name));
-				data.push_back(Pair("contract_hash",datahash.GetHex()));
-				result.push_back(Pair("data",data));
-				break;
-			case 'u':
-				result.push_back(Pair("type","contract update"));
-				DecodeAgreementUpdateOpRet(tx.vout[numvouts-1].scriptPubKey, version, agreementtxid, proposaltxid);
-				result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-				result.push_back(Pair("proposal_txid",proposaltxid.GetHex()));
-				GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, disputefee, totaldeposit, datahash, dummytxid, name);
-				CPK_arbitrator = pubkey2pk(arbitrator);
-				GetAgreementUpdateData(txid, name, datahash, disputefee, deposit, revision);
-				data.push_back(Pair("revision",revision));
-				if (CPK_arbitrator.IsFullyValid())
-					data.push_back(Pair("dispute_fee",(double)disputefee/COIN));
-				data.push_back(Pair("contract_name",name));
-				data.push_back(Pair("contract_hash",datahash.GetHex()));
-				result.push_back(Pair("data",data));
-				break;
-			case 's':
-				result.push_back(Pair("type","contract close"));
-				DecodeAgreementCloseOpRet(tx.vout[numvouts-1].scriptPubKey, version, agreementtxid, proposaltxid);
-				result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-				result.push_back(Pair("proposal_txid",proposaltxid.GetHex()));
-				GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, disputefee, totaldeposit, datahash, dummytxid, name);
-				CPK_arbitrator = pubkey2pk(arbitrator);
-				GetAgreementUpdateData(txid, name, datahash, disputefee, deposit, revision);
-				data.push_back(Pair("revision",revision));
-				data.push_back(Pair("contract_name",name));
-				data.push_back(Pair("contract_hash",datahash.GetHex()));
-				data.push_back(Pair("deposit_for_sender", (double)deposit/COIN));
-				data.push_back(Pair("deposit_for_receiver", (double)(totaldeposit-deposit)/COIN));
-				data.push_back(Pair("total_deposit", (double)totaldeposit/COIN));
-				result.push_back(Pair("data",data));
-				break;
-			case 'd':
-				result.push_back(Pair("type","dispute"));
-				DecodeAgreementDisputeOpRet(tx.vout[numvouts-1].scriptPubKey, version, agreementtxid, srcpub, datahash);
-				result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-				result.push_back(Pair("source_pubkey",HexStr(srcpub)));
-				result.push_back(Pair("data_hash",datahash.GetHex()));
-				break;
-			case 'r':
-				result.push_back(Pair("type","dispute resolution"));
-				DecodeAgreementDisputeResolveOpRet(tx.vout[numvouts-1].scriptPubKey, version, agreementtxid, rewardedpubkey);
-				result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-				result.push_back(Pair("rewarded_pubkey",HexStr(rewardedpubkey)));
-				break;
-			case 'n':
-				result.push_back(Pair("type","agreement unlock"));
-				DecodeAgreementUnlockOpRet(tx.vout[numvouts-1].scriptPubKey, version, agreementtxid, pawnshoptxid);
-				result.push_back(Pair("contract_txid",agreementtxid.GetHex()));
-				result.push_back(Pair("dest_pawnshop_txid",pawnshoptxid.GetHex()));
-				GetAgreementInitialData(agreementtxid, proposaltxid, srcpub, destpub, arbitrator, disputefee, totaldeposit, datahash, dummytxid, name);
-				deposit = CheckDepositUnlockCond(pawnshoptxid);
-				if (deposit > -1)
-				{
-					result.push_back(Pair("deposit_sent", (double)deposit/COIN));
-					result.push_back(Pair("deposit_refunded", (double)(totaldeposit-deposit)/COIN));
-				}
-				result.push_back(Pair("total_deposit", (double)totaldeposit/COIN));
-				break;
-		}
-		return(result);
-	}
-	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "invalid Agreements transaction id");
-}
+/*
 UniValue AgreementUpdateLog(uint256 agreementtxid, int64_t samplenum, bool backwards)
 {
     UniValue result(UniValue::VARR);
