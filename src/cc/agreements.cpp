@@ -1083,18 +1083,14 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				if (resolutioninfo.size() > 256)
 					return eval->Invalid("resolutioninfo string over 256 chars!");
 
-				fprintf(stderr,"checking agreement validity\n"); //TODO remove
-
 				// Get the agreement transaction and check if it contains an arbitrator pubkey. (aka if disputes are enabled)
-				if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
+				else if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
 				DecodeAgreementOpRet(agreementtx.vout.back().scriptPubKey) != 'c')
 					return eval->Invalid("Specified agreement not found for 'r' type transaction!");
 
 				// Verify that the agreement is still active by checking if its deposit has been spent or not.
 				else if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0 && height <= chainActive.Height())
 					return eval->Invalid("Agreement specified in dispute transaction is no longer active!");
-
-				fprintf(stderr,"checking GetAcceptedProposalData\n"); //TODO remove
 
 				// Get the agreement deposit value.
 				GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
@@ -1105,20 +1101,14 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				else if (depositcut > deposit)
 					return eval->Invalid("Invalid depositcut amount for 'r' type transaction, should be between 0 and total deposit!");
 
-				fprintf(stderr,"checking dispute validity\n"); //TODO remove
-
 				// Get the dispute transaction.
-				if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
+				else if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
 				DecodeAgreementOpRet(disputetx.vout.back().scriptPubKey) != 'd')
 					return eval->Invalid("Specified dispute not found for 'r' type transaction!");
 
-				fprintf(stderr,"FindLatestAgreementEventTx\n"); //TODO remove
-
 				// Verify that the dispute is valid. (points to correct agreementtxid, srcpub/destpub is correct etc.)
-				if (FindLatestAgreementEventTx(agreementtxid,cp,true) != disputetxid)
+				else if (FindLatestAgreementEventTx(agreementtxid,cp,true) != disputetxid)
 					return eval->Invalid("Specified dispute txid is not latest event for this agreement!");
-
-				fprintf(stderr,"DecodeAgreementDisputeOpRet\n"); //TODO remove
 
 				// Get dispute srcpub and destpub pubkeys.
 				DecodeAgreementDisputeOpRet(disputetx.vout.back().scriptPubKey,version,disputeagreementtxid,srcpub,destpub,disputeinfo,bFinalDispute);
@@ -1126,14 +1116,12 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				if (disputeagreementtxid != agreementtxid)
 					return eval->Invalid("Dispute and dispute resolution are referring to different agreement txids!");
 
-				else if (!((srcpub == offerorpub && destpub == signerpub) || (destpub == offerorpub && destpub == signerpub)))
+				else if (!((srcpub == offerorpub && destpub == signerpub) || (destpub == offerorpub && srcpub == signerpub)))
 					return eval->Invalid("Pubkey signing the dispute doesn't match any member pubkeys of the agreement!");
 
 				// If depositcut < 0, then the deposit vout from the agreement must not be spent.
 				else if (depositcut < 0 && bFinalDispute)
 					return eval->Invalid("Cannot cancel final dispute for 'r' type transaction!");
-
-				fprintf(stderr,"GetCCaddress and Getscriptaddress\n"); //TODO remove
 
 				GetCCaddress1of2(cp, mutualCCaddress, srcpub, destpub);
 				Getscriptaddress(srcnormaladdress,CScript() << ParseHex(HexStr(srcpub)) << OP_CHECKSIG);
@@ -1144,10 +1132,8 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				if (numvouts < 2 || numvouts > 4)
 					return eval->Invalid("Invalid number of vouts for 'r' type transaction!");
 				
-				fprintf(stderr,"Verify vins\n"); //TODO remove
-
 				// Verify that vin.0 was signed by arbitratorpub.
-				if (IsCCInput(tx.vin[0].scriptSig) != 0 || TotalPubkeyNormalInputs(tx,arbitratorpub) == 0)
+				else if (IsCCInput(tx.vin[0].scriptSig) != 0 || TotalPubkeyNormalInputs(tx,arbitratorpub) == 0)
 					return eval->Invalid("vin.0 must be normal input signed by agreement arbitrator pubkey!");
 
 				// Verify that vin.1 is spending the event log baton from the dispute.
@@ -1170,13 +1156,9 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 						return (false);
 				} 
 
-				fprintf(stderr,"Verify vouts\n"); //TODO remove
-
 				// If depositcut < 0, verify that vout0 (event log) was sent as CC output to correct address.
 				if (depositcut < 0)
 				{
-					fprintf(stderr,"depositcut < 0\n"); //TODO remove
-
 					if (ConstrainVout(tx.vout[0], 1, mutualCCaddress, CC_MARKER_VALUE) == 0)
 						return eval->Invalid("vout.0 must be CC baton to proposal's srcpub and destpub CC 1of2 address if depositcut < 0!");
 				}
@@ -1184,8 +1166,6 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				// If depositcut == 0, check if vout0 value is equal to deposit and if it was sent to dispute's destpub normal address.
 				else if (depositcut == 0)
 				{
-					fprintf(stderr,"depositcut == 0\n"); //TODO remove
-
 					if (ConstrainVout(tx.vout[0], 0, destnormaladdress, deposit) == 0)
 						return eval->Invalid("vout.0 must be deposit to dispute destpub normal address if depositcut == 0!");
 				}
@@ -1193,16 +1173,12 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				// If depositcut > 0, check if vout0 value is equal to depositcut and is sent to dispute's srcpub normal address.
 				else if (depositcut > 0)
 				{
-					fprintf(stderr,"depositcut >= 0\n"); //TODO remove
-
 					if (ConstrainVout(tx.vout[0], 0, srcnormaladdress, depositcut) == 0)
 						return eval->Invalid("vout.0 must be depositcut to dispute srcpub normal address if depositcut > 0!");
 
 					// If depositcut != deposit, check if vout1 is equal to (deposit - depositcut) and if it was sent to dispute's destpub normal address.
 					if (depositcut != deposit)
 					{
-						fprintf(stderr,"depositcut != deposit\n"); //TODO remove
-
 						if (ConstrainVout(tx.vout[1], 0, destnormaladdress, deposit - depositcut) == 0)
 							return eval->Invalid("vout.1 must be (deposit - depositcut) to dispute srcpub normal address if depositcut > 0 & depositcut != deposit!");
 					}
@@ -1226,7 +1202,6 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 	else
 		return eval->Invalid("Invalid Agreements function id and/or data!");
 
-	fprintf(stderr,"Agreements transaction validated\n");
 	LOGSTREAM("agreementscc", CCLOG_INFO, stream << "Agreements transaction validated" << std::endl);
 	return (true);
 }
