@@ -1086,7 +1086,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				fprintf(stderr,"checking agreement validity\n"); //TODO remove
 
 				// Get the agreement transaction and check if it contains an arbitrator pubkey. (aka if disputes are enabled)
-				else if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
+				if (myGetTransaction(agreementtxid,agreementtx,hashBlock) == 0 || agreementtx.vout.size() == 0 ||
 				DecodeAgreementOpRet(agreementtx.vout.back().scriptPubKey) != 'c')
 					return eval->Invalid("Specified agreement not found for 'r' type transaction!");
 
@@ -1108,7 +1108,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				fprintf(stderr,"checking dispute validity\n"); //TODO remove
 
 				// Get the dispute transaction.
-				else if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
+				if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
 				DecodeAgreementOpRet(disputetx.vout.back().scriptPubKey) != 'd')
 					return eval->Invalid("Specified dispute not found for 'r' type transaction!");
 
@@ -1147,7 +1147,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 				fprintf(stderr,"Verify vins\n"); //TODO remove
 
 				// Verify that vin.0 was signed by arbitratorpub.
-				else if (IsCCInput(tx.vin[0].scriptSig) != 0 || TotalPubkeyNormalInputs(tx,arbitratorpub) == 0)
+				if (IsCCInput(tx.vin[0].scriptSig) != 0 || TotalPubkeyNormalInputs(tx,arbitratorpub) == 0)
 					return eval->Invalid("vin.0 must be normal input signed by agreement arbitrator pubkey!");
 
 				// Verify that vin.1 is spending the event log baton from the dispute.
