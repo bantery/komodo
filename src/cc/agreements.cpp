@@ -1879,9 +1879,10 @@ UniValue AgreementInfo(uint256 txid)
 {
 	UniValue result(UniValue::VOBJ);
 	char str[67];
-	uint256 hashBlock,agreementhash,agreementtxid,disputetxid,refagreementtxid;
+	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid;
 	uint8_t version,funcid;
 	CPubKey srcpub,destpub,arbitratorpub,offerorpub,signerpub;
+	CTransaction tx;
 	std::string agreementname,cancelinfo,disputeinfo,resolutioninfo;
 	int32_t numvouts;
 	int64_t deposit,depositcut,payment,disputefee;
