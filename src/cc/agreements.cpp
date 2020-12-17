@@ -2087,6 +2087,7 @@ UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum
 			while ((total < samplenum || samplenum == 0) &&
 			// Fetch the transaction.
 			FetchCCtx(batontxid,batontx,cp) != 0 &&
+			//myGetTransaction(batontxid,batontx,hashBlock) != 0 && batontx.vout.size() > 0 &&
 			// Fetch function id.
 			(funcid = DecodeAgreementOpRet(batontx.vout.back().scriptPubKey)) != 0)
 			{
@@ -2110,7 +2111,7 @@ UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum
 
 				// If bReverse = true, stop searching if we found the original agreement txid. 
 				// If bReverse = false, stop searching if we found the latest event txid. 
-				if ((!bReverse && batontxid == latesttxid) || (bReverse && batontxid != agreementtxid))
+				if ((!bReverse && batontxid == latesttxid) || (bReverse && batontxid == agreementtxid))
 					break;
 
 				// Get previous or next event transaction.
