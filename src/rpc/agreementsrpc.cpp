@@ -453,14 +453,6 @@ UniValue agreementunlock(const UniValue& params, bool fHelp, const CPubKey& mypk
     return(result);
 }
 
-// TODO:
-// agreementinfo txid
-// agreementlist (maybe put filter options here, to handle inventory/proposals as well?)
-// agreementeventlog (agreementupdatelog, with filter!)
-// agreementreferences (agreementsubcontracts)
-
-// agreementinventory (possibly merge proposals and inventory into one rpc?)
-
 UniValue agreementinfo(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     uint256 txid;
@@ -481,6 +473,26 @@ UniValue agreementinfo(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error(CC_REQUIREMENTS_MSG);
     txid = Parseuint256((char *)params[0].get_str().c_str());
     return(AgreementInfo(txid));
+}
+
+// agreementeventlog (agreementupdatelog, with filter!)
+
+UniValue agreementreferences(const UniValue& params, bool fHelp, const CPubKey& mypk)
+{
+    uint256 agreementtxid;
+
+    if ( fHelp || params.size() != 1 )
+        throw runtime_error(
+            "agreementreferences agreementtxid\n"
+            );
+    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
+        throw runtime_error(CC_REQUIREMENTS_MSG);
+    
+    agreementtxid = Parseuint256((char *)params[0].get_str().c_str());
+    if (agreementtxid == zeroid)
+        throw runtime_error("Agreement transaction id invalid\n");
+    
+    return(AgreementReferences(mypk,agreementtxid));
 }
 
 /*UniValue agreementupdatelog(const UniValue& params, bool fHelp, const CPubKey& mypk)

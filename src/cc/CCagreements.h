@@ -258,6 +258,7 @@ UniValue AgreementProposals(CPubKey pk, uint256 agreementtxid);
 UniValue AgreementSubcontracts(uint256 agreementtxid);
 UniValue AgreementInventory(CPubKey pk);
 UniValue AgreementSettlements(const CPubKey& pk, uint256 agreementtxid, bool bActiveOnly);*/
+UniValue AgreementReferences(const CPubKey& pk,uint256 agreementtxid);
 UniValue AgreementList(const CPubKey& pk,uint8_t flags,uint256 filtertxid);
 
 #endif

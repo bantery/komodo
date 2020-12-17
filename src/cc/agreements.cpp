@@ -2068,6 +2068,36 @@ UniValue AgreementEventLog(uint256 agreementtxid,int64_t samplenum,bool backward
 
 }
 
+UniValue AgreementReferences(const CPubKey& pk,uint256 agreementtxid)
+{
+	UniValue result(UniValue::VARR);
+
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+    mypk = pk.IsValid()?pk:pubkey2pk(Mypubkey());
+
+	GetCCaddress(cp,myCCaddr,mypk);
+
+	if (myGetTransaction(agreementtxid,agreementtx,hashBlock) != 0 && (numvouts = agreementtx.vout.size()) > 0 &&
+	DecodeAgreementOpRet(agreementtx.vout[numvouts-1].scriptPubKey) == 'c')
+	{
+		SetCCtxids(txids,myCCaddr,true,EVAL_AGREEMENTS,CC_MARKER_VALUE,zeroid,'c');
+		for (std::vector<uint256>::const_iterator it=agreementtxids.begin(); it!=agreementtxids.end(); it++)
+		{
+			txid = *it;
+			if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
+			DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey) == 'c')
+			{
+				GetAcceptedProposalData(txid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
+				if (refagreementtxid == agreementtxid)
+					result.push_back(txid.GetHex());
+			}
+		}
+	}
+	
+	return(result);
+}
+
 UniValue AgreementList(const CPubKey& pk,uint8_t flags,uint256 filtertxid)
 {
 	UniValue result(UniValue::VARR);
