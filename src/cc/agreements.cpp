@@ -1951,7 +1951,7 @@ UniValue AgreementInfo(uint256 txid)
 				{
 					if (batonfuncid == 'c')
 						result.push_back(Pair("status","accepted"));
-					else if (batonfuncid == 't')
+					else if (batonfuncid == 's')
 						result.push_back(Pair("status","cancelled"));
 					
 					result.push_back(Pair("status_txid",batontxid.GetHex()));
