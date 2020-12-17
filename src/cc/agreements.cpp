@@ -2073,7 +2073,7 @@ UniValue AgreementReferences(const CPubKey& pk,uint256 agreementtxid)
 	UniValue result(UniValue::VARR);
 	CTransaction agreementtx,tx;
 	CPubKey mypk,offerorpub,signerpub,arbitratorpub;
-	uint256 txid,hashBlock,agreementtxid,refagreementtxid;
+	uint256 txid,hashBlock,refagreementtxid;
 	std::vector<uint256> txids;
 	int64_t deposit,payment,disputefee;
 	int32_t numvouts;
