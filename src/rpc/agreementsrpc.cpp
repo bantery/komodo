@@ -638,22 +638,35 @@ UniValue agreementsettlements(const UniValue& params, bool fHelp, const CPubKey&
 
 UniValue agreementlist(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
-    if ( fHelp || params.size() > 0 )
+    UniValue result(UniValue::VARR);
+
+	uint256 filtertxid;
+    uint8_t flags;
+
+    if (fHelp || params.size() > 2)
         throw runtime_error(
-            "agreementlist\n"
-            "\nReturns array of every active proposal and agreement transaction id in the blockchain.\n"
-            + HelpRequiringPassphrase() +
-            "\nArguments:\n"
-            "none\n"
-            "\nResult:\n"
-            "\"result\"  (array of strings) Transaction ids of active proposals and agreements.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("agreementlist", "")
-            + HelpExampleRpc("agreementlist", "")
-        );
-    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
+            "agreementlist [all|proposals|agreements][filtertxid]\n"
+            );
+    if (ensure_CCrequirements(EVAL_AGREEMENTS) < 0)
         throw runtime_error(CC_REQUIREMENTS_MSG);
-    return(AgreementList(mypk));
+
+    flags = ASF_ALL;
+    if (params.size() >= 1)
+    {
+        if (STR_TOLOWER(params[0].get_str()) == "all")
+            flags = ASF_ALL;
+        else if (STR_TOLOWER(params[0].get_str()) == "proposals")
+            flags = ASF_PROPOSALS;
+        else if (STR_TOLOWER(params[0].get_str()) == "agreements")
+            flags = ASF_AGREEMENTS;
+        else
+            throw runtime_error("Incorrect search keyword used\n");
+    }
+	
+    if (params.size() == 2)
+        filtertxid = Parseuint256((char *)params[1].get_str().c_str());
+
+    return(AgreementList(mypk,flags,filtertxid));
 }
 
 static const CRPCCommand commands[] =

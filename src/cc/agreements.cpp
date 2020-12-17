@@ -2068,38 +2068,59 @@ UniValue AgreementEventLog(uint256 agreementtxid,int64_t samplenum,bool backward
 
 }
 
-UniValue AgreementList(const CPubKey& pk)
+UniValue AgreementList(const CPubKey& pk,uint8_t flags,uint256 filtertxid)
 {
 	UniValue result(UniValue::VARR);
 	CTransaction tx;
-	CPubKey mypk;
-	uint256 txid,hashBlock;
+	CPubKey mypk,srcpub,destpub,arbitratorpub;
+	uint256 txid,hashBlock,agreementhash,agreementtxid;
+	uint8_t version;
+	std::string agreementname;
 	std::vector<uint256> proposaltxids,agreementtxids;
+	int64_t deposit,payment,disputefee;
 	int32_t numvouts;
 	char myCCaddr[65];
+	bool bNewAgreement;
 
 	struct CCcontract_info *cp,C;
 	cp = CCinit(&C,EVAL_AGREEMENTS);
     mypk = pk.IsValid()?pk:pubkey2pk(Mypubkey());
 
 	GetCCaddress(cp,myCCaddr,mypk);
-    SetCCtxids(proposaltxids,myCCaddr,true,EVAL_AGREEMENTS,CC_MARKER_VALUE,zeroid,'p');
-	SetCCtxids(agreementtxids,myCCaddr,true,EVAL_AGREEMENTS,CC_MARKER_VALUE,zeroid,'c');
 
-    for (std::vector<uint256>::const_iterator it=proposaltxids.begin(); it!=proposaltxids.end(); it++)
-    {
-        txid = *it;
-        if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
-		DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey) == 'p')
-			result.push_back(txid.GetHex());
-    }
-	for (std::vector<uint256>::const_iterator it=agreementtxids.begin(); it!=agreementtxids.end(); it++)
-    {
-        txid = *it;
-        if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
-		DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey) == 'c')
-			result.push_back(txid.GetHex());
-    }
+	if (flags & ASF_PROPOSALS)
+	{
+		SetCCtxids(proposaltxids,myCCaddr,true,EVAL_AGREEMENTS,CC_MARKER_VALUE,zeroid,'p');
+		for (std::vector<uint256>::const_iterator it=proposaltxids.begin(); it!=proposaltxids.end(); it++)
+		{
+			txid = *it;
+			if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
+			DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey) == 'p')
+			{
+				if (filtertxid == zeroid)
+					result.push_back(txid.GetHex());
+				else
+				{
+					DecodeAgreementProposalOpRet(tx.vout.back().scriptPubKey,version,srcpub,destpub,agreementname,
+					agreementhash,deposit,payment,agreementtxid,bNewAgreement,arbitratorpub,disputefee);
+
+					if (!bNewAgreement && agreementtxid == filtertxid)
+						result.push_back(txid.GetHex());
+				}
+			}
+		}
+	}
+	if (flags & ASF_AGREEMENTS)
+	{
+		SetCCtxids(agreementtxids,myCCaddr,true,EVAL_AGREEMENTS,CC_MARKER_VALUE,zeroid,'c');
+		for (std::vector<uint256>::const_iterator it=agreementtxids.begin(); it!=agreementtxids.end(); it++)
+		{
+			txid = *it;
+			if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
+			DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey) == 'c')
+				result.push_back(txid.GetHex());
+		}
+	}
 
     return(result);
 }

@@ -23,6 +23,13 @@
 #define CC_MARKER_VALUE 10000
 #define CC_RESPONSE_VALUE 50000
 
+enum EAgreementTxSearchFlags
+{
+	ASF_PROPOSALS = 1, // 0b00000001
+	ASF_AGREEMENTS = 2, // 0b00000010
+	ASF_ALL = ASF_PROPOSALS | ASF_AGREEMENTS, // 0b00000011
+};
+
 /*
 /// Decodes op_return data marked with EVAL_AGREEMENTS using a decoder function corresponding to the found function id.
 /// @param scriptPubKey op_return data object
@@ -251,6 +258,6 @@ UniValue AgreementProposals(CPubKey pk, uint256 agreementtxid);
 UniValue AgreementSubcontracts(uint256 agreementtxid);
 UniValue AgreementInventory(CPubKey pk);
 UniValue AgreementSettlements(const CPubKey& pk, uint256 agreementtxid, bool bActiveOnly);*/
-UniValue AgreementList(const CPubKey& pk);
+UniValue AgreementList(const CPubKey& pk,uint8_t flags,uint256 filtertxid);
 
 #endif
