@@ -2089,7 +2089,7 @@ UniValue AgreementReferences(const CPubKey& pk,uint256 agreementtxid)
 	DecodeAgreementOpRet(agreementtx.vout[numvouts-1].scriptPubKey) == 'c')
 	{
 		SetCCtxids(txids,myCCaddr,true,EVAL_AGREEMENTS,CC_MARKER_VALUE,zeroid,'c');
-		for (std::vector<uint256>::const_iterator it=agreementtxids.begin(); it!=agreementtxids.end(); it++)
+		for (std::vector<uint256>::const_iterator it=txids.begin(); it!=txids.end(); it++)
 		{
 			txid = *it;
 			if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
