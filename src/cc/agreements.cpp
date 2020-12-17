@@ -2073,7 +2073,8 @@ UniValue AgreementList()
 	UniValue result(UniValue::VARR);
 	CTransaction tx;
 	CPubKey mypk;
-	uint256 txid,proposaltxids,agreementtxids,hashBlock;
+	uint256 txid,hashBlock;
+	std::vector<uint256> proposaltxids,agreementtxids;
 	int32_t numvouts;
 	char myCCaddr[65];
 
