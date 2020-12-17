@@ -2071,6 +2071,13 @@ UniValue AgreementEventLog(uint256 agreementtxid,int64_t samplenum,bool backward
 UniValue AgreementReferences(const CPubKey& pk,uint256 agreementtxid)
 {
 	UniValue result(UniValue::VARR);
+	CTransaction agreementtx,tx;
+	CPubKey mypk,offerorpub,signerpub,arbitratorpub;
+	uint256 txid,hashBlock,agreementtxid,refagreementtxid;
+	std::vector<uint256> txids;
+	int64_t deposit,payment,disputefee;
+	int32_t numvouts;
+	char myCCaddr[65];
 
 	struct CCcontract_info *cp,C;
 	cp = CCinit(&C,EVAL_AGREEMENTS);
