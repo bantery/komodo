@@ -2086,8 +2086,8 @@ UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum
 			// Iterate through events while we haven't reached samplenum limits yet.
 			while ((total < samplenum || samplenum == 0) &&
 			// Fetch the transaction.
-			FetchCCtx(batontxid,batontx,cp) != 0 &&
-			//myGetTransaction(batontxid,batontx,hashBlock) != 0 && batontx.vout.size() > 0 &&
+			//FetchCCtx(batontxid,batontx,cp) != 0 &&
+			myGetTransaction(batontxid,batontx,hashBlock) != 0 && batontx.vout.size() > 0 &&
 			// Fetch function id.
 			(funcid = DecodeAgreementOpRet(batontx.vout.back().scriptPubKey)) != 0)
 			{
