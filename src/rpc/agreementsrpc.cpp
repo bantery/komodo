@@ -537,8 +537,6 @@ UniValue agreementreferences(const UniValue& params, bool fHelp, const CPubKey& 
 
 UniValue agreementlist(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
-    UniValue result(UniValue::VARR);
-
 	uint256 filtertxid;
     uint8_t flags;
 
