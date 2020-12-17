@@ -2085,8 +2085,6 @@ UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum
 			
 			// Iterate through events while we haven't reached samplenum limits yet.
 			while ((total < samplenum || samplenum == 0) &&
-			// If bReverse = true, stop searching if we found the original agreement txid. 
-			(bReverse && batontxid != agreementtxid) && 
 			// Fetch the transaction.
 			FetchCCtx(batontxid,batontx,cp) != 0 &&
 			// Fetch function id.
@@ -2110,8 +2108,9 @@ UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum
 				
 				if (batontxid != agreementtxid) total++;
 
+				// If bReverse = true, stop searching if we found the original agreement txid. 
 				// If bReverse = false, stop searching if we found the latest event txid. 
-				if (!bReverse && batontxid == latesttxid)
+				if ((!bReverse && batontxid == latesttxid) || (bReverse && batontxid != agreementtxid))
 					break;
 
 				// Get previous or next event transaction.
