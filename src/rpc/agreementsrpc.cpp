@@ -488,15 +488,15 @@ UniValue agreementeventlog(const UniValue& params, bool fHelp, const CPubKey& my
     flags = ASF_ALLEVENTS;
     if (params.size() >= 2)
     {
-        if (STR_TOLOWER(params[0].get_str()) == "all")
+        if (STR_TOLOWER(params[1].get_str()) == "all")
             flags = ASF_ALLEVENTS;
-        else if (STR_TOLOWER(params[0].get_str()) == "updates")
+        else if (STR_TOLOWER(params[1].get_str()) == "updates")
             flags = ASF_UPDATES;
-        else if (STR_TOLOWER(params[0].get_str()) == "closures")
+        else if (STR_TOLOWER(params[1].get_str()) == "closures")
             flags = ASF_CLOSURES;
-        else if (STR_TOLOWER(params[0].get_str()) == "disputes")
+        else if (STR_TOLOWER(params[1].get_str()) == "disputes")
             flags = ASF_DISPUTES;
-        else if (STR_TOLOWER(params[0].get_str()) == "resolutions")
+        else if (STR_TOLOWER(params[1].get_str()) == "resolutions")
             flags = ASF_RESOLUTIONS;
         else
             throw runtime_error("Incorrect search keyword used\n");
