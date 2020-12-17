@@ -698,7 +698,7 @@ static const CRPCCommand commands[] =
 	//{ "agreements",  "agreementupdatelog",	  &agreementupdatelog,    true },
 	//{ "agreements",  "agreementinventory",	  &agreementinventory,    true },
 	//{ "agreements",  "agreementproposals",	  &agreementproposals,    true },
-	//{ "agreements",  "agreementsubcontracts", &agreementsubcontracts, true },
+	{ "agreements",  "agreementreferences", &agreementreferences, true },
 	//{ "agreements",  "agreementsettlements",  &agreementsettlements,  true },
 	{ "agreements",  "agreementlist",    &agreementlist,    true },
 };
