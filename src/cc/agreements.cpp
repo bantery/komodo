@@ -1880,12 +1880,12 @@ UniValue AgreementInfo(uint256 txid)
 {
 	UniValue result(UniValue::VOBJ);
 	char str[67];
-	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid;
-	uint8_t version,funcid;
+	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid,batontxid;
+	uint8_t version,funcid,batonfuncid;
 	CPubKey srcpub,destpub,arbitratorpub,offerorpub,signerpub;
-	CTransaction tx;
+	CTransaction tx,batontx;
 	std::string agreementname,cancelinfo,disputeinfo,resolutioninfo;
-	int32_t numvouts;
+	int32_t retcode,vini,height,numvouts;
 	int64_t deposit,depositcut,payment,disputefee;
 	bool bNewAgreement,bFinalDispute;
 
@@ -1906,10 +1906,8 @@ UniValue AgreementInfo(uint256 txid)
 				if (bNewAgreement)
 				{
 					result.push_back(Pair("proposal_type","agreement_create"));
-					
 					result.push_back(Pair("proposed_agreement_name",agreementname));
 					result.push_back(Pair("proposed_agreement_hash",agreementhash.GetHex()));
-
 					result.push_back(Pair("required_deposit",(double)deposit/COIN));
 
 					if (payment > 0)
@@ -1942,14 +1940,25 @@ UniValue AgreementInfo(uint256 txid)
 					
 					if (deposit >= 0)
 						result.push_back(Pair("deposit_cut_requested",(double)deposit/COIN));
-
 					if (payment > 0)
 						result.push_back(Pair("required_payment",(double)payment/COIN));
 				}
 
-				// TODO check status/etc here.
-				// Statuses: open, accepted, cancelled
-
+				// Check status and spending txid.
+				if ((retcode = CCgetspenttxid(batontxid,vini,height,txid,0)) == 0 &&
+				myGetTransaction(batontxid,batontx,hashBlock) != 0 && batontx.vout.size() > 0 &&
+				(batonfuncid = DecodeAgreementOpRet(batontx.vout.back().scriptPubKey)) != 0)
+				{
+					if (batonfuncid == 'c')
+						result.push_back(Pair("status","accepted"));
+					else if (batonfuncid == 't')
+						result.push_back(Pair("status","cancelled"));
+					
+					result.push_back(Pair("status_txid",batontxid.GetHex()));
+				}
+				else
+					result.push_back(Pair("status","active"));
+				
 				break;
 			case 's': // proposal cancel
 				result.push_back(Pair("type","proposal_cancel"));
@@ -2086,7 +2095,6 @@ UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum
 			// Iterate through events while we haven't reached samplenum limits yet.
 			while ((total < samplenum || samplenum == 0) &&
 			// Fetch the transaction.
-			//FetchCCtx(batontxid,batontx,cp) != 0 &&
 			myGetTransaction(batontxid,batontx,hashBlock) != 0 && batontx.vout.size() > 0 &&
 			// Fetch function id.
 			(funcid = DecodeAgreementOpRet(batontx.vout.back().scriptPubKey)) != 0)
