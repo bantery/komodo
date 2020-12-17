@@ -2062,8 +2062,8 @@ UniValue AgreementInfo(uint256 txid)
 UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum,bool bReverse)
 {
 	UniValue result(UniValue::VARR);
-	CTransaction agreementtx,batontx,hashBlock;
-	uint256 latesttxid,batontxid;
+	CTransaction agreementtx,batontx;
+	uint256 latesttxid,batontxid,hashBlock;
 	int64_t total = 0LL;
 	int32_t numvouts,vini,height;
 	uint8_t funcid;
