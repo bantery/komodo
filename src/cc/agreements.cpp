@@ -1892,10 +1892,6 @@ UniValue AgreementInfo(uint256 txid)
 	if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
 	(funcid = DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey)) != 0)
 	{
-		// Only show info for confirmed transactions.
-		if (KOMODO_NSPV_FULLNODE && hashBlock.IsNull())
-			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "The transaction is still in mempool");
-		
 		result.push_back(Pair("result","success"));
 		result.push_back(Pair("txid",txid.GetHex()));
 
@@ -2063,9 +2059,67 @@ UniValue AgreementInfo(uint256 txid)
 	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "invalid Agreements transaction id");
 }
 
-UniValue AgreementEventLog(uint256 agreementtxid,int64_t samplenum,bool backwards)
+UniValue AgreementEventLog(uint256 agreementtxid,uint8_t flags,int64_t samplenum,bool bReverse)
 {
+	UniValue result(UniValue::VARR);
+	CTransaction agreementtx,batontx,hashBlock;
+	uint256 latesttxid,batontxid;
+	int64_t total = 0LL;
+	int32_t numvouts,vini,height;
+	uint8_t funcid;
 
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
+
+	if (myGetTransaction(agreementtxid,agreementtx,hashBlock) != 0 && (numvouts = agreementtx.vout.size()) > 0 &&
+	DecodeAgreementOpRet(agreementtx.vout[numvouts-1].scriptPubKey) == 'c')
+	{
+		latesttxid = FindLatestAgreementEventTx(agreementtxid,cp,true);
+
+		if (latesttxid != agreementtxid)
+		{
+			if (bReverse) // from latest event to oldest
+				batontxid = latesttxid;
+			else
+				batontxid = agreementtxid;
+			
+			// Iterate through events while we haven't reached samplenum limits yet.
+			while ((total < samplenum || samplenum == 0) &&
+			// Stop searching if we found the original txid. 
+			((bReverse && batontxid != agreementtxid) || (!bReverse && batontxid != latesttxid)) && 
+			// Fetch the transaction.
+			FetchCCtx(batontxid,batontx,cp) != 0 &&
+			// Fetch function id.
+			(funcid = DecodeAgreementOpRet(batontx.vout.back().scriptPubKey)) != 0)
+			{
+				switch(funcid)
+				{
+					case 'u':
+						if (flags & ASF_UPDATES) result.push_back(batontxid.GetHex());
+						break;
+					case 't':
+						if (flags & ASF_CLOSURES) result.push_back(batontxid.GetHex());
+						break;
+					case 'd':
+						if (flags & ASF_DISPUTES) result.push_back(batontxid.GetHex());
+						break;
+					case 'r':
+						if (flags & ASF_RESOLUTIONS) result.push_back(batontxid.GetHex());
+						break;
+				}
+				
+				if (batontxid != agreementtxid) total++;
+
+				// Get previous or next event transaction.
+				if (bReverse)
+					batontxid = batontx.vin[1].prevout.hash;
+				else
+					CCgetspenttxid(batontxid,vini,height,batontx.GetHash(),0);
+			}
+		}
+	}
+
+	return(result);
 }
 
 UniValue AgreementReferences(const CPubKey& pk,uint256 agreementtxid)
@@ -2166,7 +2220,7 @@ UniValue AgreementList(const CPubKey& pk,uint8_t flags,uint256 filtertxid)
 UniValue AgreementUpdateLog(uint256 agreementtxid, int64_t samplenum, bool backwards)
 {
     UniValue result(UniValue::VARR);
-    int64_t total = 0LL;
+    
 	CTransaction agreementtx, latesttx, batontx;
     int32_t numvouts, vini, height, retcode;
     uint256 batontxid, sourcetxid, hashBlock, latesttxid;

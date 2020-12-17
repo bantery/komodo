@@ -459,23 +459,63 @@ UniValue agreementinfo(const UniValue& params, bool fHelp, const CPubKey& mypk)
     if ( fHelp || params.size() != 1 )
         throw runtime_error(
             "agreementinfo txid\n"
-            "\nReturns info about any Agreements CC transaction.\n"
-            + HelpRequiringPassphrase() +
-            "\nArguments:\n"
-            "1. txid (uint256, required) ID of an Agreements CC transaction.\n"
-            "\nResult:\n"
-            "\"result\"  (string) Info about the transaction.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("agreementinfo", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
-            + HelpExampleRpc("agreementinfo", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
-        );
+            );
     if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
         throw runtime_error(CC_REQUIREMENTS_MSG);
     txid = Parseuint256((char *)params[0].get_str().c_str());
     return(AgreementInfo(txid));
 }
 
-// agreementeventlog (agreementupdatelog, with filter!)
+UniValue agreementeventlog(const UniValue& params, bool fHelp, const CPubKey& mypk)
+{
+    uint256 agreementtxid;
+    int64_t samplenum;
+    uint8_t flags;
+    bool bReverse;
+    std::string typestr;
+
+    if ( fHelp || params.size() < 1 || params.size() > 4)
+        throw runtime_error(
+            "agreementeventlog agreementtxid [all|updates|closures|disputes|resolutions][samplenum][reverse]\n"
+            );
+    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
+        throw runtime_error(CC_REQUIREMENTS_MSG);
+    
+    agreementtxid = Parseuint256((char *)params[0].get_str().c_str());
+    if (agreementtxid == zeroid)
+        throw runtime_error("Agreement transaction id invalid\n");
+    
+    flags = ASF_ALLEVENTS;
+    if (params.size() >= 2)
+    {
+        if (STR_TOLOWER(params[0].get_str()) == "all")
+            flags = ASF_ALLEVENTS;
+        else if (STR_TOLOWER(params[0].get_str()) == "updates")
+            flags = ASF_UPDATES;
+        else if (STR_TOLOWER(params[0].get_str()) == "closures")
+            flags = ASF_CLOSURES;
+        else if (STR_TOLOWER(params[0].get_str()) == "disputes")
+            flags = ASF_DISPUTES;
+        else if (STR_TOLOWER(params[0].get_str()) == "resolutions")
+            flags = ASF_RESOLUTIONS;
+        else
+            throw runtime_error("Incorrect search keyword used\n");
+    }
+    
+    samplenum = 0;
+    if (params.size() >= 3)
+		samplenum = atoll(params[2].get_str().c_str());
+    
+    bReverse = false;
+	if (params.size() == 4)
+    {
+        typestr = params[3].get_str(); // NOTE: is there a better way to parse a bool from the param array?
+        if (STR_TOLOWER(typestr) == "1" || STR_TOLOWER(typestr) == "true")
+            bReverse = true;
+    }
+
+    return(AgreementEventLog(agreementtxid,flags,samplenum,bReverse));
+}
 
 UniValue agreementreferences(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
@@ -494,159 +534,6 @@ UniValue agreementreferences(const UniValue& params, bool fHelp, const CPubKey& 
     
     return(AgreementReferences(mypk,agreementtxid));
 }
-
-/*UniValue agreementupdatelog(const UniValue& params, bool fHelp, const CPubKey& mypk)
-{
-    uint256 agreementtxid;
-	int64_t samplenum;
-	std::string typestr;
-	bool start_backwards;
-    if ( fHelp || params.size() < 2 || params.size() > 3)
-        throw runtime_error(
-            "agreementupdatelog agreementtxid start_backwards ( num_samples )\n"
-            "\nReturns array of agreement update transaction ids for the specified agreement transaction id.\n"
-            + HelpRequiringPassphrase() +
-            "\nArguments:\n"
-            "1. agreementtxid (uint256, required) Valid agreement transaction id.\n"
-            "2. start_backwards (numeric, required) Whether or not to sort ids from latest to oldest.\n"
-            "3. num_samples (numeric, optional, default=0) Max amount of ids to retrieve. If 0, returns all ids.\n"
-            "\nResult:\n"
-            "\"result\"  (array of strings) Transaction ids of accepted agreement updates.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("agreementupdatelog", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a 1 6")
-            + HelpExampleRpc("agreementupdatelog", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a 1 6")
-        );
-    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
-        throw runtime_error(CC_REQUIREMENTS_MSG);
-    agreementtxid = Parseuint256((char *)params[0].get_str().c_str());
-	typestr = params[1].get_str();
-    if (STR_TOLOWER(typestr) == "1" || STR_TOLOWER(typestr) == "true")
-        start_backwards = true;
-    else if (STR_TOLOWER(typestr) == "0" || STR_TOLOWER(typestr) == "false")
-        start_backwards = false;
-    else 
-        throw runtime_error("Incorrect sort type\n");
-    if (params.size() >= 3)
-		samplenum = atoll(params[2].get_str().c_str());
-    else
-        samplenum = 0;
-    return(AgreementUpdateLog(agreementtxid, samplenum, start_backwards));
-}
-
-UniValue agreementinventory(const UniValue& params, bool fHelp, const CPubKey& mypk)
-{
-    CPubKey pubkey;
-    if ( fHelp || params.size() > 1 )
-        throw runtime_error(
-            "agreementinventory ( \"pubkey\" )\n"
-            "Returns three arrays (one for seller, client and arbitrator) of agreement transaction ids that the\n"
-            "specified pubkey is a member of.\n"
-            + HelpRequiringPassphrase() +
-            "\nArguments:\n"
-            "1. \"pubkey\" (string, optional, default=mypk) Pubkey to check for. If unset, pubkey used to launch\n"
-            "the Komodo daemon is passed.\n"
-            "\nResult:\n"
-            "\"result\"  (json object) The agreement transaction ids that the pubkey is a member of.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("agreementinventory", "\"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\"")
-            + HelpExampleRpc("agreementinventory", "\"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\"")
-        );
-    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
-        throw runtime_error(CC_REQUIREMENTS_MSG);
-    if ( params.size() == 1 )
-        pubkey = pubkey2pk(ParseHex(params[0].get_str().c_str()));
-    else
-		pubkey = mypk.IsValid() ? mypk : pubkey2pk(Mypubkey());
-	return(AgreementInventory(pubkey));
-}
-
-UniValue agreementproposals(const UniValue& params, bool fHelp, const CPubKey& mypk)
-{
-    uint256 agreementtxid = zeroid;
-	std::vector<unsigned char> pubkey;
-    if ( fHelp || params.size() > 2 )
-        throw runtime_error(
-            "agreementproposals ( agreementtxid \"pubkey\" )\n"
-            "\nReturns three arrays (one for seller, client and arbitrator) of agreement proposal transaction ids\n"
-            "that the specified pubkey is referenced in.\n"
-            + HelpRequiringPassphrase() +
-            "\nArguments:\n"
-            "1. agreementtxid (uint256, optional) Valid agreement transaction id. If set, will filter out proposals\n"
-            "unrelated to this agreement.\n"
-            "2. \"pubkey\" (string, optional, default=mypk) Pubkey to check for. If unset, pubkey used to launch\n"
-            "the Komodo daemon is passed.\n"
-            "\nResult:\n"
-            "\"result\"  (json object) The agreement proposal transaction ids that the pubkey is referenced in.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("agreementproposals", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a \"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\"")
-            + HelpExampleRpc("agreementproposals", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a \"0237b502085b2552ae4ac6b2b9faf8b215b34a540ecdb5e0b22d2d3b82219a0aea\"")
-        );
-    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
-        throw runtime_error(CC_REQUIREMENTS_MSG);
-	if ( params.size() >= 1 )
-        agreementtxid = Parseuint256((char *)params[0].get_str().c_str());
-	if ( params.size() == 2 )
-		pubkey = ParseHex(params[1].get_str().c_str());
-    return(AgreementProposals(pubkey2pk(pubkey), agreementtxid));
-}
-
-UniValue agreementsubcontracts(const UniValue& params, bool fHelp, const CPubKey& mypk)
-{
-    uint256 agreementtxid;
-    if ( fHelp || params.size() != 1 )
-        throw runtime_error(
-            "agreementsubcontracts agreementtxid\n"
-            "\nReturns array of agreement transaction ids that reference the specified agreement transaction id\n"
-            "as the master agreement.\n"
-            + HelpRequiringPassphrase() +
-            "\nArguments:\n"
-            "1. agreementtxid (uint256, required) Valid agreement transaction id.\n"
-            "\nResult:\n"
-            "\"result\"  (array of strings) Transaction ids of subcontracts.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("agreementsubcontracts", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
-            + HelpExampleRpc("agreementsubcontracts", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a")
-        );
-    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
-        throw runtime_error(CC_REQUIREMENTS_MSG);
-    agreementtxid = Parseuint256((char *)params[0].get_str().c_str());
-    return(AgreementSubcontracts(agreementtxid));
-}
-
-UniValue agreementsettlements(const UniValue& params, bool fHelp, const CPubKey& mypk)
-{
-    uint256 agreementtxid;
-    if ( fHelp || params.size() != 2 )
-        throw runtime_error(
-            "agreementsettlements agreementtxid active_only\n"
-            "\nReturns array of Pawnshop transaction ids that reference the specified agreement transaction id.\n"
-            "Note: Unlike the other Agreements RPCs, this RPC will only return non-empty arrays\n"
-            "for members of this agreement (not including the arbitrator).\n"
-            + HelpRequiringPassphrase() +
-            "\nArguments:\n"
-            "1. agreementtxid (uint256, required) Valid agreement transaction id.\n"
-            "2. active_only (numeric, required) if set, filters out closed Pawnshop instances.\n"
-            "\nResult:\n"
-            "\"result\"  (array of strings) Transaction ids of settlements.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("agreementsettlements", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a 1")
-            + HelpExampleRpc("agreementsettlements", "56b9bae388690d42fb13c7431d935acbda209bdafa239531549ab4de4b20802a 1")
-        );
-    if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 || ensure_CCrequirements(EVAL_PAWNSHOP) < 0 )
-        throw runtime_error(CC_REQUIREMENTS_MSG);
-	std::string typestr;
-	bool bActiveOnly;
-    agreementtxid = Parseuint256((char *)params[0].get_str().c_str());
-	typestr = params[1].get_str();
-    if (STR_TOLOWER(typestr) == "1" || STR_TOLOWER(typestr) == "true")
-        bActiveOnly = true;
-    else if (STR_TOLOWER(typestr) == "0" || STR_TOLOWER(typestr) == "false")
-        bActiveOnly = false;
-    else 
-        throw runtime_error("active_only flag invalid or empty\n");
-
-    return(AgreementSettlements(mypk, agreementtxid, bActiveOnly));
-}*/
 
 UniValue agreementlist(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
@@ -694,12 +581,9 @@ static const CRPCCommand commands[] =
 	{ "agreements",  "agreementresolve", &agreementresolve, true }, 
 	{ "agreements",  "agreementunlock",  &agreementunlock,  true }, 
 	{ "agreements",  "agreementaddress", &agreementaddress, true },
-	{ "agreements",  "agreementinfo",	 &agreementinfo,	true },
-	//{ "agreements",  "agreementupdatelog",	  &agreementupdatelog,    true },
-	//{ "agreements",  "agreementinventory",	  &agreementinventory,    true },
-	//{ "agreements",  "agreementproposals",	  &agreementproposals,    true },
-	{ "agreements",  "agreementreferences", &agreementreferences, true },
-	//{ "agreements",  "agreementsettlements",  &agreementsettlements,  true },
+	{ "agreements",  "agreementinfo",    &agreementinfo,	true },
+	{ "agreements",  "agreementeventlog",&agreementeventlog,true },
+	{ "agreements",  "agreementreferences",   &agreementreferences,   true },
 	{ "agreements",  "agreementlist",    &agreementlist,    true },
 };
 
