@@ -2103,33 +2103,6 @@ UniValue AgreementList()
     return(result);
 }
 
-UniValue ChannelsList(const CPubKey& pk)
-{
-    UniValue result(UniValue::VOBJ); std::vector<uint256> txids; struct CCcontract_info *cp,C; uint256 txid,hashBlock,tmp_txid,param3,tokenid;
-    CTransaction tx; char myCCaddr[65],str[512],pub[34]; CPubKey mypk,srcpub,destpub; int32_t vout,numvouts,param1;
-    int64_t nValue,param2; uint16_t confirmation; uint8_t version;
-
-	
-    cp = CCinit(&C,EVAL_CHANNELS);
-    mypk = pk.IsValid()?pk:pubkey2pk(Mypubkey());
-    GetCCaddress(cp,myCCaddr,mypk);
-    SetCCtxids(txids,myCCaddr,true,EVAL_CHANNELS,CC_MARKER_VALUE,zeroid,'O');
-    result.push_back(Pair("result","success"));
-    result.push_back(Pair("name","Channels List"));
-    for (std::vector<uint256>::const_iterator it=txids.begin(); it!=txids.end(); it++)
-    {
-        txid = *it;
-        if ( myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts= tx.vout.size()) > 0 )
-        {
-            if (DecodeChannelsOpRet(tx.vout[numvouts-1].scriptPubKey,tokenid,tmp_txid,srcpub,destpub,param1,param2,param3,version,confirmation) == 'O')
-            {                
-                sprintf(str,"%lld payments of %lld satoshi to %s",(long long)param1,(long long)param2,pubkey33_str(pub,(uint8_t *)&destpub));                
-                result.push_back(Pair(txid.GetHex().data(),str));
-            }
-        }
-    }
-    return(result);
-}
 /*
 UniValue AgreementUpdateLog(uint256 agreementtxid, int64_t samplenum, bool backwards)
 {
