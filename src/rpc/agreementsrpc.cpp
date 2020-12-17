@@ -653,7 +653,7 @@ UniValue agreementlist(const UniValue& params, bool fHelp, const CPubKey& mypk)
         );
     if ( ensure_CCrequirements(EVAL_AGREEMENTS) < 0 )
         throw runtime_error(CC_REQUIREMENTS_MSG);
-    return(AgreementList());
+    return(AgreementList(mypk));
 }
 
 static const CRPCCommand commands[] =

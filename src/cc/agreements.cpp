@@ -2068,7 +2068,7 @@ UniValue AgreementEventLog(uint256 agreementtxid,int64_t samplenum,bool backward
 
 }
 
-UniValue AgreementList()
+UniValue AgreementList(const CPubKey& pk)
 {
 	UniValue result(UniValue::VARR);
 	CTransaction tx;
