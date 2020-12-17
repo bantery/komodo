@@ -1949,7 +1949,7 @@ UniValue AgreementInfo(uint256 txid)
 				myGetTransaction(batontxid,batontx,hashBlock) != 0 && batontx.vout.size() > 0 &&
 				(batonfuncid = DecodeAgreementOpRet(batontx.vout.back().scriptPubKey)) != 0)
 				{
-					if (batonfuncid == 'c')
+					if (batonfuncid == 'c' || batonfuncid == 'u' || batonfuncid == 't')
 						result.push_back(Pair("status","accepted"));
 					else if (batonfuncid == 's')
 						result.push_back(Pair("status","cancelled"));
