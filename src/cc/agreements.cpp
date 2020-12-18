@@ -1229,10 +1229,9 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 	while (myGetTransaction(latesttxid, latesttx, hashBlock) != 0 && latesttx.vout.size() > 0 &&
 	(funcid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
 	{
-		fprintf(stderr,"FindLatestAcceptedProposal loop\n");
+		fprintf(stderr,"FindLatestAcceptedProposal found funcid \"%c\"\n",funcid);
 		switch (funcid)
 		{
-			fprintf(stderr,"found funcid \"%c\"\n",funcid);
 			case 'c':
 				if (latesttx.GetHash() == agreementtxid)
 					proposaltxid = latesttx.vin[1].prevout.hash;
@@ -1257,6 +1256,8 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 		if (proposaltxid != zeroid)
 			break;
 	}
+
+	fprintf(stderr,"FindLatestAcceptedProposal end\n");
 
 	// If we found a valid latest proposaltxid, check if it's valid and return it.
 	if (proposaltxid != zeroid &&
