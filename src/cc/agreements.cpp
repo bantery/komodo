@@ -1223,12 +1223,16 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 	// Get the latest agreement event.
 	latesttxid = FindLatestAgreementEventTx(agreementtxid, cp, false);
 
+	fprintf(stderr,"FindLatestAcceptedProposal start\n");
+
 	// While we iterate through valid Agreements transactions...
 	while (myGetTransaction(latesttxid, latesttx, hashBlock) != 0 && latesttx.vout.size() > 0 &&
 	(funcid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
 	{
+		fprintf(stderr,"FindLatestAcceptedProposal loop\n");
 		switch (funcid)
 		{
+			fprintf(stderr,"found funcid \"%c\"\n",funcid);
 			case 'c':
 				if (latesttx.GetHash() == agreementtxid)
 					proposaltxid = latesttx.vin[1].prevout.hash;
@@ -1997,9 +2001,9 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("type","agreement"));
 				proposaltxid = GetAcceptedProposalData(txid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
 
-				//FindLatestAcceptedProposal(txid,cp,latestname,latesthash);
-				//result.push_back(Pair("latest_name",latestname));
-				//result.push_back(Pair("latest_hash",latesthash.GetHex()));
+				FindLatestAcceptedProposal(txid,cp,latestname,latesthash);
+				result.push_back(Pair("latest_name",latestname));
+				result.push_back(Pair("latest_hash",latesthash.GetHex()));
 				
 				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
 				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
@@ -2074,6 +2078,8 @@ UniValue AgreementInfo(uint256 txid)
 
 				if (!(disputeinfo.empty()))
 					result.push_back(Pair("dispute_info",disputeinfo));
+
+				// TODO status and resolution txid
 
 				break;
 			case 'r': // resolution
