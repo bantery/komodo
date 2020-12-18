@@ -1223,8 +1223,6 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 	// Get the latest agreement event.
 	latesttxid = FindLatestAgreementEventTx(agreementtxid, cp, false);
 
-	fprintf(stderr,"FindLatestAcceptedProposal start\n");
-
 	// While we iterate through valid Agreements transactions...
 	while (myGetTransaction(latesttxid, latesttx, hashBlock) != 0 && latesttx.vout.size() > 0 &&
 	(funcid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
@@ -1257,15 +1255,13 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 			break;
 	}
 
-	fprintf(stderr,"FindLatestAcceptedProposal end\n");
-
 	// If we found a valid latest proposaltxid, check if it's valid and return it.
 	if (proposaltxid != zeroid &&
 	myGetTransaction(proposaltxid, proposaltx, hashBlock) != 0 && proposaltx.vout.size() > 0 &&
-	DecodeAgreementProposalOpRet(latesttx.vout.back().scriptPubKey,version,srcpub,destpub,latestname,
+	DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,srcpub,destpub,latestname,
 	latesthash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) == 'p')
 	{
-
+		fprintf(stderr,"FindLatestAcceptedProposal found proposaltxid\n");
 		return proposaltxid;
 	}
 		
