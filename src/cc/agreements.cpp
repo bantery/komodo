@@ -1227,7 +1227,6 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 	while (myGetTransaction(latesttxid, latesttx, hashBlock) != 0 && latesttx.vout.size() > 0 &&
 	(funcid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
 	{
-		fprintf(stderr,"FindLatestAcceptedProposal found funcid \"%c\"\n",funcid);
 		switch (funcid)
 		{
 			case 'c':
@@ -1261,15 +1260,12 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 	DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,srcpub,destpub,latestname,
 	latesthash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) == 'p')
 	{
-		fprintf(stderr,"FindLatestAcceptedProposal found proposaltxid\n");
 		return proposaltxid;
 	}
 		
 	LOGSTREAM("agreementscc", CCLOG_INFO, stream << "FindLatestAcceptedProposal: found "+std::to_string(funcid)+" funcid, couldn't retrieve hash" << std::endl);
 	return zeroid;
 }
-
-// TODO std::string GetLatestAgreementName
 
 // --- RPC implementations for transaction creation ---
 
@@ -1643,6 +1639,7 @@ UniValue AgreementAccept(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is no longer active");
 
 	// Verify that the agreement is not currently suspended.
+	// TODO: add check to make sure latest event tx has been confirmed at least once
 	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp,false),latesttx,hashBlock) != 0 &&
 	latesttx.vout.size() > 0 &&
 	(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
@@ -1750,6 +1747,7 @@ UniValue AgreementDispute(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is no longer active");
 
 	// Verify that the agreement is not currently suspended.
+	// TODO: add check to make sure latest event tx has been confirmed at least once
 	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp,false),latesttx,hashBlock) != 0 &&
 	latesttx.vout.size() > 0 &&
 	(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
@@ -1818,6 +1816,7 @@ UniValue AgreementResolve(const CPubKey& pk,uint64_t txfee,uint256 disputetxid,i
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Dispute resolution info must be up to 256 characters");
 
 	// Get the dispute transaction.
+	// TODO: add check to make sure dispute tx has been confirmed at least once
 	else if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
 	DecodeAgreementOpRet(disputetx.vout.back().scriptPubKey) != 'd')
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced dispute transaction not found or is invalid");
@@ -1899,10 +1898,10 @@ UniValue AgreementInfo(uint256 txid)
 {
 	UniValue result(UniValue::VOBJ);
 	char str[67];
-	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid,batontxid,latesthash;
-	uint8_t version,funcid,batonfuncid;
+	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid,batontxid,latesttxid,latesthash;
+	uint8_t version,funcid,batonfuncid,latestfuncid;
 	CPubKey srcpub,destpub,arbitratorpub,offerorpub,signerpub;
-	CTransaction tx,batontx,proposaltx;
+	CTransaction tx,batontx,proposaltx,latesttx;
 	std::string agreementname,latestname,cancelinfo,disputeinfo,resolutioninfo;
 	int32_t retcode,vini,height,numvouts;
 	int64_t deposit,depositcut,payment,disputefee;
@@ -2012,8 +2011,29 @@ UniValue AgreementInfo(uint256 txid)
 
 				result.push_back(Pair("deposit",(double)deposit/COIN));
 
-				// TODO get status and latest events (?) here
-				// Statuses: active, suspended, closed, arbitrated
+				// Get latest agreement event.
+				latesttxid = FindLatestAgreementEventTx(txid,cp,false);
+				if (myGetTransaction(latesttxid,latesttx,hashBlock) != 0)
+					latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey);
+				
+				// Check agreement status.
+				if ((retcode = CCgetspenttxid(batontxid, vini, height, txid, 1)) == 0)
+				{
+					if (latestfuncid == 'r')
+						result.push_back(Pair("status","arbitrated"));
+					else
+						result.push_back(Pair("status","closed"));
+				}
+				else
+				{
+					if (latestfuncid == 'd')
+						result.push_back(Pair("status","suspended"));
+					else
+						result.push_back(Pair("status","active"));
+				}
+				
+				if (latesttxid != zeroid && latesttxid != txid)
+					result.push_back(Pair("latest_event_txid",latesttxid.GetHex()));
 
 				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
 				if (refagreementtxid != zeroid)
@@ -2071,12 +2091,19 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("claimant_pubkey",pubkey33_str(str,(uint8_t *)&srcpub)));
 				result.push_back(Pair("defendant_pubkey",pubkey33_str(str,(uint8_t *)&destpub)));
 				
-				result.push_back(Pair("final_dispute",bFinalDispute ? "true" : "false"));
+				result.push_back(Pair("is_final_dispute",bFinalDispute ? "true" : "false"));
 
+				// Check dispute status.
+				if ((retcode = CCgetspenttxid(batontxid, vini, height, txid, 0)) == 0)
+				{
+					result.push_back(Pair("is_resolved","true"));
+					result.push_back(Pair("resolution_txid",batontxid.GetHex()));
+				}
+				else
+					result.push_back(Pair("is_resolved","false"));
+				
 				if (!(disputeinfo.empty()))
 					result.push_back(Pair("dispute_info",disputeinfo));
-
-				// TODO status and resolution txid
 
 				break;
 			case 'r': // resolution
