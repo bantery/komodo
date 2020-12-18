@@ -1245,11 +1245,13 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 				break;
 			case 'd': case 'r': // these types don't contain an agreement name & hash, so skip them and move on to the previous baton
 				latesttxid == latesttx.vin[1].prevout.hash;
-				continue;
+				break;
 			default:
 				LOGSTREAM("agreementscc", CCLOG_INFO, stream << "FindLatestAcceptedProposal: found invalid funcid "+std::to_string(funcid)+"" << std::endl);
 				return zeroid;
 		}
+		if (proposaltxid != zeroid)
+			break;
 	}
 
 	// If we found a valid latest proposaltxid, check if it's valid and return it.
