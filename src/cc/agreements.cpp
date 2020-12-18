@@ -619,7 +619,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 	// Check the op_return of the transaction and fetch its function id.
 	if ((funcid = DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey)) != 0)
 	{
-		fprintf(stderr,"validating Agreements transaction type (%c)\n",funcid);
+		//fprintf(stderr,"validating Agreements transaction type (%c)\n",funcid);
 
 		GetCCaddress(cp, globalCCaddress, GetUnspendable(cp, NULL));
 
@@ -1639,8 +1639,7 @@ UniValue AgreementAccept(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid)
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is no longer active");
 
 	// Verify that the agreement is not currently suspended.
-	// TODO: add check to make sure latest event tx has been confirmed at least once
-	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp,false),latesttx,hashBlock) != 0 &&
+	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp,true),latesttx,hashBlock) != 0 &&
 	latesttx.vout.size() > 0 &&
 	(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
 	{
@@ -1648,7 +1647,7 @@ UniValue AgreementAccept(const CPubKey& pk,uint64_t txfee,uint256 proposaltxid)
 			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is currently suspended");
 	}
 	else
-		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't find latest event for referenced agreement");
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't find latest event for referenced agreement or latest event is unconfirmed");
 
 	// Get the agreement's offerorpub/signerpub/arbitratorpub, and total deposit
 	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,totaldeposit,disputefee,refagreementtxid);
@@ -1747,8 +1746,7 @@ UniValue AgreementDispute(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is no longer active");
 
 	// Verify that the agreement is not currently suspended.
-	// TODO: add check to make sure latest event tx has been confirmed at least once
-	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp,false),latesttx,hashBlock) != 0 &&
+	if (myGetTransaction(FindLatestAgreementEventTx(agreementtxid,cp,true),latesttx,hashBlock) != 0 &&
 	latesttx.vout.size() > 0 &&
 	(latestfuncid = DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey)) != 0)
 	{
@@ -1756,7 +1754,7 @@ UniValue AgreementDispute(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid
 			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced agreement is currently suspended");
 	}
 	else
-		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't find latest event for referenced agreement");
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't find latest event for referenced agreement or latest event is unconfirmed");
 
 	// Check if it contains an arbitrator pubkey. (aka if disputes are enabled)
 	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
@@ -1816,7 +1814,6 @@ UniValue AgreementResolve(const CPubKey& pk,uint64_t txfee,uint256 disputetxid,i
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Dispute resolution info must be up to 256 characters");
 
 	// Get the dispute transaction.
-	// TODO: add check to make sure dispute tx has been confirmed at least once
 	else if (myGetTransaction(disputetxid,disputetx,hashBlock) == 0 || disputetx.vout.size() == 0 ||
 	DecodeAgreementOpRet(disputetx.vout.back().scriptPubKey) != 'd')
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced dispute transaction not found or is invalid");
@@ -1834,8 +1831,8 @@ UniValue AgreementResolve(const CPubKey& pk,uint64_t txfee,uint256 disputetxid,i
 		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Agreement from dispute is no longer active");
 	
 	// Verify that the dispute is valid. (points to correct agreementtxid, srcpub/destpub is correct etc.)
-	else if (FindLatestAgreementEventTx(agreementtxid,cp,false) != disputetxid)
-		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced dispute is not the latest event for the related agreement");
+	else if (FindLatestAgreementEventTx(agreementtxid,cp,true) != disputetxid)
+		CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Referenced dispute is not the latest event for the related agreement, or is unconfirmed");
 
 	// Get the agreement data.
 	GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
