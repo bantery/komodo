@@ -526,16 +526,16 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 				return eval->Invalid("Member pubkeys of ref agreement don't match any of the pubkeys specified in proposal!");
 		}
 		
+		// agreementname must be specified, and it must be <= 64 chars.
+		if (agreementname.empty() || agreementname.size() > 64)
+			return eval->Invalid("agreementname must be specified in the proposal, and it must be <= 64 chars!");
+
 		// If a proposal has bNewAgreement set, it is treated as a proposal to create a new agreement.
 		// Otherwise, it is treated as a proposal to update an existing agreement (defined in refagreementtxid)
 		if (bNewAgreement)
 		{
-			// agreementname must be specified, and it must be <= 64 chars.
-			if (agreementname.empty() || agreementname.size() > 64)
-				return eval->Invalid("agreementname must be specified in the proposal, and it must be <= 64 chars!");
-			
 			// If arbitratorpub is defined, disputefee must be at least 10000 sats.
-			else if (arbitratorpub.IsValid() && disputefee < CC_MARKER_VALUE)
+			if (arbitratorpub.IsValid() && disputefee < CC_MARKER_VALUE)
 				return eval->Invalid("disputefee must be >="+std::to_string(CC_MARKER_VALUE)+" satoshis if arbitrator is specified in proposal!");
 			
 			// Deposit must be at least 10000 sats.
@@ -544,12 +544,8 @@ bool ValidateAgreementProposalTx(struct CCcontract_info *cp,Eval* eval,const CTr
 		}
 		else
 		{
-			// If agreementname is specified, it must be <= 64 chars.
-			if (!(agreementname.empty()) && agreementname.size() > 64)
-				return eval->Invalid("agreementname in the proposal must be <= 64 chars!");
-
 			// refagreementtxid must be specified.
-			else if (refagreementtxid == zeroid)
+			if (refagreementtxid == zeroid)
 				return eval->Invalid("No agreement specified in proposal for agreement update!");
 
 			else if (!((srcpub == offerorpub && destpub == signerpub) || (destpub == offerorpub && srcpub == signerpub)))
@@ -1214,7 +1210,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 // Function for getting the latest accepted proposaltxid of an agreement. Useful for finding data like latest agreement name or hash.
 // Using FindLatestAgreementEventTx on its own for this is insufficient since the latest transaction won't necessarily have a proposaltxid.
 // Returns latest agreementhash if successful, otherwise returns zeroid.
-uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info *cp)
+uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info *cp, std::string &latestname, uint256 &latesthash)
 {
 	CPubKey srcpub,destpub,arbitratorpub;
 	CTransaction latesttx,proposaltx;
@@ -1247,7 +1243,7 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 				if (tempagreementtxid == agreementtxid)
 					proposaltxid = tempproposaltxid;
 				break;
-			case 'd': case 'r': // these types don't contain an agreement hash, so skip them and move on to the previous baton
+			case 'd': case 'r': // these types don't contain an agreement name & hash, so skip them and move on to the previous baton
 				latesttxid == latesttx.vin[1].prevout.hash;
 				continue;
 			default:
@@ -1259,8 +1255,10 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 	// If we found a valid latest proposaltxid, check if it's valid and return it.
 	if (proposaltxid != zeroid &&
 	myGetTransaction(proposaltxid, proposaltx, hashBlock) != 0 && proposaltx.vout.size() > 0 &&
-	DecodeAgreementOpRet(latesttx.vout.back().scriptPubKey) == 'p')
+	DecodeAgreementProposalOpRet(latesttx.vout.back().scriptPubKey,version,srcpub,destpub,latestname,
+	latesthash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) == 'p')
 	{
+
 		return proposaltxid;
 	}
 		
@@ -1268,7 +1266,7 @@ uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info
 	return zeroid;
 }
 
-// TODO: GetAgreementEventNum (int32_t eventnum) - revisions
+// TODO std::string GetLatestAgreementName
 
 // --- RPC implementations for transaction creation ---
 
@@ -1357,6 +1355,7 @@ UniValue AgreementUpdate(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,
 	int32_t vini,height,retcode;
 	uint256 hashBlock,batontxid,dummyuint256;
 	CScript opret;
+	std::string latestname;
 
 	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
 	struct CCcontract_info *cp,C;
@@ -1392,6 +1391,14 @@ UniValue AgreementUpdate(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,
 	if (mypk == offerorpub) destpub = signerpub;
 	else destpub = offerorpub;
 
+	// If agreementname is unspecified, fetch the name from the latest accepted proposal.
+	if (agreementname.empty())
+	{
+		if (FindLatestAcceptedProposal(agreementtxid,cp,latestname,dummyuint256) == zeroid)
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't locate latest agreement name");
+		agreementname = latestname;
+	}
+
 	opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,mypk,destpub,agreementname,agreementhash,-1,payment,agreementtxid,false,arbitratorpub,0);
 
 	if (AddNormalinputs2(mtx, txfee + CC_RESPONSE_VALUE + CC_MARKER_VALUE * 3, 60) > 0) // vin.*: normal input
@@ -1423,6 +1430,7 @@ UniValue AgreementClose(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,u
 	int32_t vini,height,retcode;
 	uint256 hashBlock,batontxid,dummyuint256;
 	CScript opret;
+	std::string latestname;
 
 	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
 	struct CCcontract_info *cp,C;
@@ -1462,6 +1470,14 @@ UniValue AgreementClose(const CPubKey& pk,uint64_t txfee,uint256 agreementtxid,u
 
 	if (mypk == offerorpub) destpub = signerpub;
 	else destpub = offerorpub;
+
+	// If agreementname is unspecified, fetch the name from the latest accepted proposal.
+	if (agreementname.empty())
+	{
+		if (FindLatestAcceptedProposal(agreementtxid,cp,latestname,dummyuint256) == zeroid)
+			CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "Couldn't locate latest agreement name");
+		agreementname = latestname;
+	}
 
 	opret = EncodeAgreementProposalOpRet(AGREEMENTCC_VERSION,mypk,destpub,agreementname,agreementhash,depositcut,payment,agreementtxid,false,arbitratorpub,0);
 
@@ -1880,14 +1896,17 @@ UniValue AgreementInfo(uint256 txid)
 {
 	UniValue result(UniValue::VOBJ);
 	char str[67];
-	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid,batontxid;
+	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid,batontxid,latesthash;
 	uint8_t version,funcid,batonfuncid;
 	CPubKey srcpub,destpub,arbitratorpub,offerorpub,signerpub;
 	CTransaction tx,batontx;
-	std::string agreementname,cancelinfo,disputeinfo,resolutioninfo;
+	std::string agreementname,latestname,cancelinfo,disputeinfo,resolutioninfo;
 	int32_t retcode,vini,height,numvouts;
 	int64_t deposit,depositcut,payment,disputefee;
 	bool bNewAgreement,bFinalDispute;
+
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_AGREEMENTS);
 
 	if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
 	(funcid = DecodeAgreementOpRet(tx.vout[numvouts-1].scriptPubKey)) != 0)
@@ -1974,8 +1993,10 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("type","agreement"));
 				proposaltxid = GetAcceptedProposalData(txid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
 
-				// TODO get latest name and hash here, plus revisions
-
+				FindLatestAcceptedProposal(txid,cp,latestname,latesthash);
+				result.push_back(Pair("latest_name",latestname));
+				result.push_back(Pair("latest_hash",latesthash.GetHex()));
+				
 				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
 				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
 				if (arbitratorpub.IsValid())
@@ -2000,10 +2021,10 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
 				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
 
-				// TODO get update name and hash here, plus revision number
+				// TODO get update name and hash here
 
-				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
-				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
+				result.push_back(Pair("source_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
+				result.push_back(Pair("destination_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
 
 				break;
 			case 't': // close
@@ -2013,10 +2034,10 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
 				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
 
-				// TODO get update name and hash here, plus revision number
+				// TODO get update name and hash here
 
-				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
-				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
+				result.push_back(Pair("source_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
+				result.push_back(Pair("destination_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
 
 				GetAcceptedProposalData(agreementtxid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
 
@@ -2227,288 +2248,3 @@ UniValue AgreementList(const CPubKey& pk,uint8_t flags,uint256 filtertxid)
 
     return(result);
 }
-
-/*
-UniValue AgreementUpdateLog(uint256 agreementtxid, int64_t samplenum, bool backwards)
-{
-    UniValue result(UniValue::VARR);
-    
-	CTransaction agreementtx, latesttx, batontx;
-    int32_t numvouts, vini, height, retcode;
-    uint256 batontxid, sourcetxid, hashBlock, latesttxid;
-    uint8_t funcid;
-	if (myGetTransaction(agreementtxid,agreementtx,hashBlock) != 0 && (numvouts = agreementtx.vout.size()) > 0 &&
-	(funcid = DecodeAgreementOpRet(agreementtx.vout[numvouts-1].scriptPubKey)) == 'c')
-	{
-		GetLatestAgreementUpdate(agreementtxid, latesttxid, funcid);
-		if (latesttxid != agreementtxid)
-		{
-			if (backwards)
-			{
-				total++;
-				result.push_back(latesttxid.GetHex());
-				myGetTransaction(latesttxid, latesttx, hashBlock);
-				batontxid = latesttx.vin[1].prevout.hash;
-				while ((total < samplenum || samplenum == 0) && 
-				myGetTransaction(batontxid, batontx, hashBlock) && batontx.vout.size() > 0 &&
-				(funcid = DecodeAgreementOpRet(batontx.vout[batontx.vout.size() - 1].scriptPubKey)) != 0)
-				{
-					switch (funcid)
-					{
-						case 'u':
-						case 'd':
-							total++;
-							result.push_back(batontxid.GetHex());
-							batontxid = batontx.vin[1].prevout.hash;
-							continue;
-						default:
-							break;
-					}
-					break;
-				}
-			}
-			else
-			{
-				if ((retcode = CCgetspenttxid(batontxid, vini, height, agreementtxid, 1)) == 0 && 
-					myGetTransaction(batontxid, batontx, hashBlock) && batontx.vout.size() > 0 &&
-					((funcid = DecodeAgreementOpRet(batontx.vout[batontx.vout.size() - 1].scriptPubKey)) == 'u' || funcid == 's' || funcid == 'd'))
-				{
-					total++;
-					result.push_back(batontxid.GetHex());
-					sourcetxid = batontxid;
-				}
-				while ((total < samplenum || samplenum == 0) &&
-					(retcode = CCgetspenttxid(batontxid, vini, height, sourcetxid, 0)) == 0 && 
-					myGetTransaction(batontxid, batontx, hashBlock) && batontx.vout.size() > 0)
-				{
-					funcid = DecodeAgreementOpRet(batontx.vout[batontx.vout.size() - 1].scriptPubKey);
-					switch (funcid)
-					{
-						case 'u':
-						case 'd':
-							total++;
-							result.push_back(batontxid.GetHex());
-							if (batontxid == latesttxid)
-								break;
-							else
-							{
-								sourcetxid = batontxid;
-								continue;
-							}
-						case 'n':
-						case 's':
-						case 'r':
-							result.push_back(batontxid.GetHex());
-							break;
-						default:
-							break;
-					}
-					break;
-				}
-			}
-		}
-		return (result);
-	}
-	CCERR_RESULT("agreementscc", CCLOG_INFO, stream << "invalid Agreements transaction id");
-}
-// agreementproposals - returns every unspent proposal that pk is referenced in. agreementtxid can be specified to filter out proposals unrelated to this agreement
-UniValue AgreementProposals(CPubKey pk, uint256 agreementtxid)
-{
-	UniValue result(UniValue::VOBJ), senderlist(UniValue::VARR), receiverlist(UniValue::VARR), arbitratorlist(UniValue::VARR);
-	std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressIndexCCMarker;
-	std::vector<uint256> foundtxids;
-	struct CCcontract_info *cp, C;
-	uint256 txid, hashBlock, dummytxid, refagreementtxid;
-	std::vector<uint8_t> srcpub, destpub, arbitrator;
-	uint8_t version, proposaltype, dummychar;
-	int64_t dummyamount;
-	std::string dummystr;
-	CTransaction vintx;
-	cp = CCinit(&C, EVAL_AGREEMENTS);
-	CPubKey mypk;
-	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
-	auto AddProposalWithPk = [&](uint256 txid, uint256 agreementtxid)
-	{
-		if (myGetTransaction(txid, vintx, hashBlock) != 0 && vintx.vout.size() > 0 && 
-		DecodeAgreementProposalOpRet(vintx.vout[vintx.vout.size() - 1].scriptPubKey,version,proposaltype,srcpub,destpub,arbitrator,dummyamount,dummyamount,dummyamount,dummytxid,refagreementtxid,dummytxid,dummystr) == 'p' &&
-		!IsProposalSpent(txid, dummytxid, dummychar) &&
-		(agreementtxid == zeroid || (proposaltype != 'p' && agreementtxid == refagreementtxid)) &&
-		std::find(foundtxids.begin(), foundtxids.end(), txid) == foundtxids.end())
-		{
-			if (mypk == pubkey2pk(srcpub))
-			{
-				senderlist.push_back(txid.GetHex());
-				foundtxids.push_back(txid);
-			}
-			if (pubkey2pk(destpub).IsValid() && mypk == pubkey2pk(destpub))
-			{
-				receiverlist.push_back(txid.GetHex());
-				foundtxids.push_back(txid);
-			}
-			if (pubkey2pk(arbitrator).IsValid() && mypk == pubkey2pk(arbitrator))
-			{
-				arbitratorlist.push_back(txid.GetHex());
-				foundtxids.push_back(txid);
-			}
-		}
-	};
-	SetCCunspents(addressIndexCCMarker,cp->unspendableCCaddr,true);
-	for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it = addressIndexCCMarker.begin(); it != addressIndexCCMarker.end(); it++)
-		AddProposalWithPk(it->first.txhash, agreementtxid);
-	result.push_back(Pair("sender",senderlist));
-	result.push_back(Pair("receiver",receiverlist));
-	result.push_back(Pair("arbitrator",arbitratorlist));
-	return (result);
-}
-// agreementsubcontracts - returns every contract that has agreementtxid defined as its master contract
-UniValue AgreementSubcontracts(uint256 agreementtxid)
-{
-	UniValue result(UniValue::VARR);
-	std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressIndexCCMarker;
-	std::vector<uint256> foundtxids;
-	struct CCcontract_info *cp, C;
-	std::vector<uint8_t> dummypk;
-	int64_t dummyamount;
-	std::string dummystr;
-	uint256 txid, hashBlock, dummytxid, refagreementtxid;
-	CTransaction vintx;
-	cp = CCinit(&C, EVAL_AGREEMENTS);
-	auto AddAgreementWithRef = [&](uint256 txid)
-	{
-		if (myGetTransaction(txid, vintx, hashBlock) != 0 && vintx.vout.size() > 0 && 
-		DecodeAgreementOpRet(vintx.vout[vintx.vout.size() - 1].scriptPubKey) == 'c' &&
-		GetAgreementInitialData(txid, dummytxid, dummypk, dummypk, dummypk, dummyamount, dummyamount, dummytxid, refagreementtxid, dummystr) &&
-		agreementtxid == refagreementtxid &&
-		std::find(foundtxids.begin(), foundtxids.end(), txid) == foundtxids.end())
-		{
-			result.push_back(txid.GetHex());
-			foundtxids.push_back(txid);
-		}
-	};
-	SetCCunspents(addressIndexCCMarker,cp->unspendableCCaddr,true);
-	for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it = addressIndexCCMarker.begin(); it != addressIndexCCMarker.end(); it++)
-		AddAgreementWithRef(it->first.txhash);
-	return (result);
-}
-// agreementinventory - returns every agreement pk is a member of
-UniValue AgreementInventory(CPubKey pk)
-{
-	UniValue result(UniValue::VOBJ), initiatorlist(UniValue::VARR), recipientlist(UniValue::VARR), arbitratorlist(UniValue::VARR);
-	std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressIndexCCMarker;
-	std::vector<uint256> foundtxids;
-	struct CCcontract_info *cp, C;
-	uint256 txid, hashBlock, dummytxid;
-	std::vector<uint8_t> initiator, recipient, arbitrator;
-	int64_t dummyamount;
-	std::string dummystr;
-	CTransaction vintx;
-	cp = CCinit(&C, EVAL_AGREEMENTS);
-	auto AddAgreementWithPk = [&](uint256 txid)
-	{
-		if (myGetTransaction(txid, vintx, hashBlock) != 0 && vintx.vout.size() > 0 && 
-		DecodeAgreementOpRet(vintx.vout[vintx.vout.size() - 1].scriptPubKey) == 'c' &&
-		GetAgreementInitialData(txid, dummytxid, initiator, recipient, arbitrator, dummyamount, dummyamount, dummytxid, dummytxid, dummystr) &&
-		std::find(foundtxids.begin(), foundtxids.end(), txid) == foundtxids.end())
-		{
-			if (pk == pubkey2pk(initiator))
-			{
-				initiatorlist.push_back(txid.GetHex());
-				foundtxids.push_back(txid);
-			}
-			if (pk == pubkey2pk(recipient))
-			{
-				recipientlist.push_back(txid.GetHex());
-				foundtxids.push_back(txid);
-			}
-			if (pk == pubkey2pk(arbitrator))
-			{
-				arbitratorlist.push_back(txid.GetHex());
-				foundtxids.push_back(txid);
-			}
-		}
-	};
-	SetCCunspents(addressIndexCCMarker,cp->unspendableCCaddr,true);
-	for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it = addressIndexCCMarker.begin(); it != addressIndexCCMarker.end(); it++)
-		AddAgreementWithPk(it->first.txhash);
-	result.push_back(Pair("initiator",initiatorlist));
-	result.push_back(Pair("recipient",recipientlist));
-	result.push_back(Pair("arbitrator",arbitratorlist));
-	return (result);
-}
-// agreementsettlements - returns every pawnshop that has been designated to this agreement
-// bActiveOnly can be used to filter out inactive/closed pawnshop
-UniValue AgreementSettlements(const CPubKey& pk, uint256 agreementtxid, bool bActiveOnly)
-{
-	UniValue result(UniValue::VARR);
-	CPubKey mypk, CPK_initiator, CPK_recipient, dummypk;
-	CTransaction agreementtx, tx;
-	uint256 txid, hashBlock, refagreementtxid, dummytxid;
-	std::vector<uint8_t> initiatorpk, recipientpk, arbitratorpk;
-	int32_t numvouts;
-	int64_t dummyamount;
-	std::string dummystr, pawnshopname;
-	uint8_t version, lastfuncid;
-	uint32_t pawnshopflags;
-	char myCCaddr[65];
-	std::vector<uint256> txids;
-	struct CCcontract_info *cpPawnshop, CPawnshop;
-	cpPawnshop = CCinit(&CPawnshop, EVAL_PAWNSHOP);
-	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
-	if (myGetTransaction(agreementtxid,agreementtx,hashBlock) != 0 && agreementtx.vout.size() > 0 &&
-	DecodeAgreementOpRet(agreementtx.vout[agreementtx.vout.size()-1].scriptPubKey) == 'c' &&
-	GetAgreementInitialData(agreementtxid, dummytxid, initiatorpk, recipientpk, arbitratorpk, dummyamount, dummyamount, dummytxid, dummytxid, dummystr))
-	{
-		CPK_initiator = pubkey2pk(initiatorpk);
-		CPK_recipient = pubkey2pk(recipientpk);
-		if (mypk != CPK_initiator && mypk != CPK_recipient)
-			return (result);
-		GetCCaddress(cpPawnshop,myCCaddr,mypk);
-		SetCCtxids(txids,myCCaddr,true,EVAL_PAWNSHOP,CC_MARKER_VALUE,zeroid,'c');
-		for (std::vector<uint256>::const_iterator it=txids.begin(); it!=txids.end(); it++)
-		{
-			txid = *it;
-			if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
-			DecodePawnshopCreateOpRet(tx.vout[numvouts-1].scriptPubKey,version,pawnshopname,dummypk,dummypk,pawnshopflags,dummytxid,dummyamount,dummyamount,refagreementtxid) != 0 &&
-			refagreementtxid == agreementtxid && GetLatestPawnshopTxid(txid, dummytxid, lastfuncid))
-			{
-				if (bActiveOnly)
-				{
-					if (lastfuncid == 'c')
-						result.push_back(txid.GetHex());
-				}
-				else
-				{
-					result.push_back(txid.GetHex());
-				}
-			}
-		}
-	}
-	return (result);
-}
-UniValue AgreementList()
-{
-	UniValue result(UniValue::VARR);
-	std::vector<uint256> foundtxids;
-	std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressIndexCCMarker;
-	struct CCcontract_info *cp, C; uint256 txid, hashBlock;
-	CTransaction vintx;
-	cp = CCinit(&C, EVAL_AGREEMENTS);
-	auto addAgreementTxid = [&](uint256 txid)
-	{
-		if (myGetTransaction(txid, vintx, hashBlock) != 0)
-		{
-			if (vintx.vout.size() > 0 && DecodeAgreementOpRet(vintx.vout[vintx.vout.size() - 1].scriptPubKey) != 0)
-			{
-				if (std::find(foundtxids.begin(), foundtxids.end(), txid) == foundtxids.end())
-				{
-					result.push_back(txid.GetHex());
-					foundtxids.push_back(txid);
-				}
-			}
-		}
-	};
-	SetCCunspents(addressIndexCCMarker,cp->unspendableCCaddr,true);
-	for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it = addressIndexCCMarker.begin(); it != addressIndexCCMarker.end(); it++)
-		addAgreementTxid(it->first.txhash);
-	return(result);
-}*/
