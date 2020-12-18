@@ -1209,7 +1209,7 @@ bool AgreementsValidate(struct CCcontract_info *cp, Eval* eval, const CTransacti
 
 // Function for getting the latest accepted proposaltxid of an agreement. Useful for finding data like latest agreement name or hash.
 // Using FindLatestAgreementEventTx on its own for this is insufficient since the latest transaction won't necessarily have a proposaltxid.
-// Returns latest agreementhash if successful, otherwise returns zeroid.
+// Returns latest proposaltxid if successful, otherwise returns zeroid.
 uint256 FindLatestAcceptedProposal(uint256 agreementtxid, struct CCcontract_info *cp, std::string &latestname, uint256 &latesthash)
 {
 	CPubKey srcpub,destpub,arbitratorpub;
@@ -1901,7 +1901,7 @@ UniValue AgreementInfo(uint256 txid)
 	uint256 hashBlock,proposaltxid,agreementhash,agreementtxid,disputetxid,refagreementtxid,batontxid,latesthash;
 	uint8_t version,funcid,batonfuncid;
 	CPubKey srcpub,destpub,arbitratorpub,offerorpub,signerpub;
-	CTransaction tx,batontx;
+	CTransaction tx,batontx,proposaltx;
 	std::string agreementname,latestname,cancelinfo,disputeinfo,resolutioninfo;
 	int32_t retcode,vini,height,numvouts;
 	int64_t deposit,depositcut,payment,disputefee;
@@ -1920,7 +1920,9 @@ UniValue AgreementInfo(uint256 txid)
 		{
 			case 'p': // proposal
 				result.push_back(Pair("type","proposal"));
-				DecodeAgreementProposalOpRet(tx.vout[numvouts-1].scriptPubKey,version,srcpub,destpub,agreementname,agreementhash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee);
+				DecodeAgreementProposalOpRet(tx.vout[numvouts-1].scriptPubKey,version,srcpub,destpub,agreementname,
+				agreementhash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee);
+
 				result.push_back(Pair("source_pubkey",pubkey33_str(str,(uint8_t *)&srcpub)));
 				result.push_back(Pair("destination_pubkey",pubkey33_str(str,(uint8_t *)&destpub)));
 				
@@ -1995,9 +1997,9 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("type","agreement"));
 				proposaltxid = GetAcceptedProposalData(txid,offerorpub,signerpub,arbitratorpub,deposit,disputefee,refagreementtxid);
 
-				FindLatestAcceptedProposal(txid,cp,latestname,latesthash);
-				result.push_back(Pair("latest_name",latestname));
-				result.push_back(Pair("latest_hash",latesthash.GetHex()));
+				//FindLatestAcceptedProposal(txid,cp,latestname,latesthash);
+				//result.push_back(Pair("latest_name",latestname));
+				//result.push_back(Pair("latest_hash",latesthash.GetHex()));
 				
 				result.push_back(Pair("offeror_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
 				result.push_back(Pair("signer_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
@@ -2023,7 +2025,13 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
 				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
 
-				// TODO get update name and hash here
+				if (myGetTransaction(proposaltxid,proposaltx,hashBlock) != 0 && 
+				DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,srcpub,destpub,latestname,
+				latesthash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) == 'p')
+				{
+					result.push_back(Pair("new_name",latestname));
+					result.push_back(Pair("new_hash",latesthash.GetHex()));
+				}
 
 				result.push_back(Pair("source_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
 				result.push_back(Pair("destination_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
@@ -2036,7 +2044,13 @@ UniValue AgreementInfo(uint256 txid)
 				result.push_back(Pair("accepted_proposal",proposaltxid.GetHex()));
 				result.push_back(Pair("agreement_txid",agreementtxid.GetHex()));
 
-				// TODO get update name and hash here
+				if (myGetTransaction(proposaltxid,proposaltx,hashBlock) != 0 && 
+				DecodeAgreementProposalOpRet(proposaltx.vout.back().scriptPubKey,version,srcpub,destpub,latestname,
+				latesthash,deposit,payment,refagreementtxid,bNewAgreement,arbitratorpub,disputefee) == 'p')
+				{
+					result.push_back(Pair("new_name",latestname));
+					result.push_back(Pair("new_hash",latesthash.GetHex()));
+				}
 
 				result.push_back(Pair("source_pubkey",pubkey33_str(str,(uint8_t *)&offerorpub)));
 				result.push_back(Pair("destination_pubkey",pubkey33_str(str,(uint8_t *)&signerpub)));
