@@ -26,7 +26,7 @@
 #include "sync_ext.h"
 
 #include "../cc/CCinclude.h"
-//#include "../cc/CCTokenTags.h"
+#include "../cc/CCTokenTags.h"
 
 using namespace std;
 
