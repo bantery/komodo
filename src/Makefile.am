@@ -320,7 +320,6 @@ libbitcoin_server_a_SOURCES = \
   cc/auction.cpp \
   cc/agreements.cpp \
   cc/pawnshop.cpp \
-  # cc/tokentags.cpp \
   cc/betprotocol.cpp \
   cc/pricesfeed.cpp \
   cc/priceslibs/cjsonpointer.cpp \
