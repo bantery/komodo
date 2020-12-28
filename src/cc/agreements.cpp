@@ -1954,8 +1954,7 @@ UniValue AgreementInfo(uint256 txid)
 
 					result.push_back(Pair("reference_agreement",refagreementtxid.GetHex()));
 
-					if (!(agreementname.empty()))
-						result.push_back(Pair("proposed_agreement_name",agreementname));
+					result.push_back(Pair("proposed_agreement_name",agreementname));
 					result.push_back(Pair("proposed_agreement_hash",agreementhash.GetHex()));
 					
 					if (deposit >= 0)
