@@ -4,7 +4,7 @@ ifeq ($(host_os),mingw32)
 $(package)_download_path=https://github.com/radix42/$(package)/archive
 $(package)_file_name=$(package)-$($(package)_git_commit).tar.gz
 $(package)_download_file=$($(package)_git_commit).tar.gz
-$(package)_sha256_hash=7082f9363b3b3eb004219fc50c7d28f2271a2674bea917739724c94f1b26c7cc
+$(package)_sha256_hash=67df06ed50f288bd7b1ec6907973684fb7cf1196f2cb368b59d423e42b065e40
 $(package)_git_commit=42ba95387cdfd67399f7aac52fddb8d6e1258ee6
 $(package)_dependencies=
 $(package)_config_opts=--enable-cxx --disable-shared
