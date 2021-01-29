@@ -346,8 +346,8 @@ bool ValidateAgreementsCCVin(struct CCcontract_info *cp,Eval* eval,const CTransa
 		return eval->Invalid("vin."+std::to_string(index)+" invalid prevout number, expected "+std::to_string(prevVout)+", got "+std::to_string(tx.vin[index].prevout.n)+"!");
 
 	// Validate previous txid.
-	else if (prevTx.GetHash()!=prevtxid) 
-		return eval->Invalid("invalid vin."+std::to_string(index)+" tx, different txid than expected!");
+	else if (prevTx.GetHash()!=prevtxid)
+		return eval->Invalid("invalid vin."+std::to_string(index)+" tx, expecting "+prevtxid.GetHex()+", got "+prevTx.GetHash().GetHex()+" !");
 	
 	return (true);
 }
