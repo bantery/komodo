@@ -2130,6 +2130,9 @@ UniValue AgreementInfo(uint256 txid)
 				else
 					result.push_back(Pair("agreement_closed","false"));
 				
+				if (!(resolutioninfo.empty()))
+					result.push_back(Pair("resolution_info",resolutioninfo));
+				
 				break;
 			//case 'n': // unlock
 			//	result.push_back(Pair("type","agreement_unlock"));
