@@ -60,7 +60,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    UniValue tokens(UniValue::VOBJ) = params[0].get_obj();
+    UniValue tokens = params[0].get_obj();
     std::vector<std::string> keys = tokens.getKeys();
     
     int32_t i = 0;
