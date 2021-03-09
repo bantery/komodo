@@ -37,6 +37,7 @@ extern void Unlock2NSPV(const CPubKey &pk);
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     UniValue result(UniValue::VOBJ);
+    std::string hex;
 
 	uint8_t flags;
     uint256 tokenid;
@@ -67,7 +68,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         tokenid = Parseuint256((char *)key);
         if (tokenid == zeroid)
             return MakeResultError("TokenID #"+std::to_string(tokenid.GetHex())+" invalid or null"); 
-        
+
         CAmount nAmount = AmountFromValue(keys[i]);
         tokenids.push_back(tokenid);
         updateamounts.push_back(nAmount);
@@ -85,16 +86,16 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         if (maxupdates < -1)
             return MakeResultError("Invalid maxupdates, must be -1, 0 or any positive number"); 
     }
-
-    result = TokenTagCreate(mypk,0,tokenids,updateamounts,flags,maxupdates);
-    RETURN_IF_ERROR(CCerror);
-
+    
     //Unlock2NSPV(mypk);
 
-    if( result.size() > 0 )
-        return MakeResultSuccess(result);
+    UniValue sigData = TokenTagCreate(mypk,0,tokenids,updateamounts,flags,maxupdates);
+    RETURN_IF_ERROR(CCerror);
+    if (ResultHasTx(sigData) > 0)
+        result = sigData;
     else
-        return MakeResultError("Could not create token tag");
+        result = MakeResultError("Could not create token tag: " + ResultGetError(sigData) );
+    return(result);
 }
 
 UniValue tokentagupdate(const UniValue& params, bool fHelp, const CPubKey& mypk)

@@ -147,6 +147,7 @@ bool ValidateTokenTagsCCVin(struct CCcontract_info *cp,Eval* eval,const CTransac
 	uint256 hashblock;
 	int32_t numvouts;
 	char tmpaddr[64];
+	CScript opret;
 
 	// Check if a vin is a TokenTags CC vin.
 	if ((*cp->ismyvin)(tx.vin[index].scriptSig) == 0)
@@ -284,6 +285,9 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 
     LOGSTREAM("agreementscc", CCLOG_INFO, stream << "ValidateTokenTagCreateTx: initiated" << std::endl);
 
+	struct CCcontract_info *cpTokens, tokensC;
+	cpTokens = CCinit(&tokensC, EVAL_TOKENS);
+
 	//numvins = createtx.vin.size();
 	//numvouts = createtx.vout.size();
 	
@@ -307,7 +311,7 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 	
 	// Check other vouts, make sure there's at least one Tokens vout, with valid tokenid and full token supply value.
 	// TokensValidate should make sure that the corresponding Tokens vin amounts match the value of the vouts.
-	tokenlist = GetValidTagTokenIds(createtx, srcpub);
+	tokenlist = GetValidTagTokenIds(cpTokens, createtx, srcpub);
 	if (tokenlist.empty())
 		return eval->Invalid("no valid token vouts found in token tag create transaction!");
 
