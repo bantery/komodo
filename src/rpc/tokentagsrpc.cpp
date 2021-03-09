@@ -39,7 +39,9 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     UniValue result(UniValue::VOBJ);
 
 	uint8_t flags;
+    uint256 tokenid;
 	int64_t maxupdates;
+    std::vector<uint256> tokenids;
     std::vector<CAmount> updateamounts;
 
     if (fHelp || params.size() < 1 || params.size() > 3)
@@ -58,14 +60,16 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     UniValue tokens = params[0].get_obj();
-    std::vector<uint256> tokenids = tokens.getKeys();
+    std::vector<std::string> keys = tokens.getKeys();
     
     int32_t i = 0;
-    for (const uint256& tokenid : tokenids) {
+    for (const std::string& key : keys) {
+        tokenid = Parseuint256((char *)key);
         if (tokenid == zeroid)
             return MakeResultError("TokenID #"+std::to_string(tokenid.GetHex())+" invalid or null"); 
-
-        CAmount nAmount = AmountFromValue(tokenids[i]);
+        
+        CAmount nAmount = AmountFromValue(keys[i]);
+        tokenids.push_back(tokenid);
         updateamounts.push_back(nAmount);
         i++;
     }
