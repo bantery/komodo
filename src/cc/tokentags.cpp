@@ -177,17 +177,45 @@ bool ValidateTokenTagsCCVin(struct CCcontract_info *cp,Eval* eval,const CTransac
 	return (true);
 }
 
-// TODO: all this shit
-// Get latest updateamount from previous transaction.
-int64_t GetLatestRequiredUpdateAmount(const CTransaction updatetx)
+// Finds the txid of the latest valid transaction that spent the previous update baton for the specified token tag.
+// Returns latest update txid, or zeroid if token tag couldn't be found.
+// Also returns the update number, can be used to check how many updates exist for the specified tag.
+uint256 GetLatestConfirmedTagUpdate(struct CCcontract_info *cp,uint256 tokentagid,int64_t &updatenum)
 {
-    
-}
+	CTransaction sourcetx, batontx;
+	uint256 hashBlock, batontxid;
+	int32_t vini, height, retcode;
+	uint8_t funcid;
+	char globalCCaddress[65];
 
-// Get this update's number count, compare it with maxupdates to make sure we don't exceed max allowed amount.
-int64_t GetTagUpdateNumber(const CTransaction updatetx)
-{
+	// Get tokentag creation transaction and its op_return.
+	if (myGetTransaction(tokentagid, sourcetx, hashBlock) && sourcetx.vout.size() > 0 &&
+	DecodeTokenTagOpRet(sourcetx.vout[0].scriptPubKey) == 'c')
+	{
+		updatenum = 0;
+		GetCCaddress(cp, globalCCaddress, GetUnspendable(cp, NULL));
 
+		// Iterate through vout0 batons while we're finding valid Agreements transactions that spent the last baton.
+		while ((IsTokenTagsvout(cp,sourcetx,0,globalCCaddress) == CC_MARKER_VALUE) &&
+		
+		// Check if vout0 was spent.
+		(retcode = CCgetspenttxid(batontxid, vini, height, sourcetx.GetHash(), 0)) == 0 &&
+
+		// Get spending transaction and its op_return.
+		myGetTransaction(batontxid, batontx, hashBlock) && batontx.vout.size() > 0 && 
+		(funcid = DecodeTokenTagOpRet(batontx.vout[0].scriptPubKey)) == 'u' &&
+		
+		// Check if the blockheight of the batontx is below or equal to current block height.
+		(komodo_blockheight(hashBlock) <= chainActive.Height()))
+		{
+			updatenum++;
+			sourcetx = batontx;
+		}
+
+		return sourcetx.GetHash();
+	}
+
+	return zeroid;
 }
 
 // Gets all valid token IDs from the token tag create tx.
@@ -195,7 +223,7 @@ int64_t GetTagUpdateNumber(const CTransaction updatetx)
 // - Have a CC opret with a tokenid and single destination pubkey equal to destpub
 // - Be a valid token vout (check with IsTokensvout)
 // - Have its nValue be equal to the full supply of the specified token
-std::vector<uint256> GetValidTagTokenIds(const CTransaction& createtx, CPubKey destpub)
+std::vector<uint256> GetValidTagTokenIds(struct CCcontract_info *cpTokens,const CTransaction& createtx,CPubKey destpub)
 {
 	CScript opret;
 	std::vector<uint256> tokenidlist;
@@ -203,9 +231,6 @@ std::vector<uint256> GetValidTagTokenIds(const CTransaction& createtx, CPubKey d
     std::vector<vscript_t> oprets;
 	uint256 tokenid;
 	int32_t numvouts;
-
-	struct CCcontract_info *cpTokens, tokensC;
-	cpTokens = CCinit(&tokensC, EVAL_TOKENS);
 
 	numvouts = createtx.vout.size();
 
@@ -224,10 +249,38 @@ std::vector<uint256> GetValidTagTokenIds(const CTransaction& createtx, CPubKey d
 	return tokenidlist;
 }
 
+// Modified version of CCtoken_balance from CCtx.cpp, includes IsTokensvout check.
+// Used in validation code to check if the submitting pubkey owns enough tokens in order to update the referenced tag.
+int64_t CCTokenBalance(struct CCcontract_info *cpTokens,char *tokenaddr,uint256 reftokenid)
+{
+    int64_t sum = 0;
+	CTransaction tx;
+	uint256 tokenid,txid,hashBlock; 
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
+
+    SetCCunspents(unspentOutputs,tokenaddr,true);
+    for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++)
+    {
+        txid = it->first.txhash;
+
+        if (myGetTransaction(txid,tx,hashBlock) != 0 && tx.vout.size() > 0 &&
+		komodo_blockheight(hashBlock) <= chainActive.Height() &&
+		IsTokensvout(true, true, cpTokens, NULL, tx, it->first.index, reftokenid) > 0)
+		{
+            sum += it->second.satoshis;
+        }
+    }
+    return(sum);
+}
+
 bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTransaction& createtx)
 {
-    // TODO: variables
-	std::vector<uint256> tokenidlist;
+	std::vector<uint256> tokenlist;
+	CScript opret;
+	uint8_t version, flags;
+	CPubKey srcpub;
+	char globalCCaddress[65];
+	int64_t maxupdates, origupdateamount;
 
     LOGSTREAM("agreementscc", CCLOG_INFO, stream << "ValidateTokenTagCreateTx: initiated" << std::endl);
 
@@ -240,7 +293,7 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 	GetCCaddress(cp, globalCCaddress, GetUnspendable(cp, NULL));
 
 	// Check vout0, make sure its embedded opret is correct.
-	if (!MyGetCCopretV2(createtx.vout[0].scriptPubKey, opret) || DecodeTokenTagCreateOpRet(opret,version,origsrcpub,
+	if (!MyGetCCopretV2(createtx.vout[0].scriptPubKey, opret) || DecodeTokenTagCreateOpRet(opret,version,srcpub,
     flags,maxupdates,origupdateamount) != 'c')
         return eval->Invalid("Token tag creation transaction data invalid!");
 	
@@ -249,7 +302,7 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 		return eval->Invalid("vout.0 is tokentags CC marker vout to global CC address for token tag create transaction!");
     
 	// Check vin0, verify that it is a normal input and that it was signed by srcpub.
-	else if (IsCCInput(createtx.vin[0].scriptSig) != 0 || TotalPubkeyNormalInputs(tx,srcpub) == 0)
+	else if (IsCCInput(createtx.vin[0].scriptSig) != 0 || TotalPubkeyNormalInputs(createtx,srcpub) == 0)
 		return eval->Invalid("vin.0 of token tag create transaction must be normal input signed by creator pubkey!");
 	
 	// Check other vouts, make sure there's at least one Tokens vout, with valid tokenid and full token supply value.
@@ -263,8 +316,19 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 
 bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, uint32_t nIn)
 {
-	return eval->Invalid("not supported yet");
-    // TODO: variables
+	CTransaction tokentagtx;
+	uint256 tokentagid,hashBlock,prevupdatetxid;
+	std::string data;
+	uint8_t funcid,version,flags;
+	int64_t updateamount,maxupdates,origupdateamount,updatenum,tokenbalance;
+	int32_t numvins,numvouts;
+	CScript opret;
+	CPubKey srcpub,origsrcpub;
+	std::vector<uint256> tokenlist;
+	char globalCCaddress[65], srcCCaddress[65], tokenaddr[65];
+
+	struct CCcontract_info *cpTokens, tokensC;
+	cpTokens = CCinit(&tokensC, EVAL_TOKENS);
 
 	// Check boundaries, and verify that input/output amounts are exact.
 	numvins = tx.vin.size();
@@ -333,18 +397,24 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
                 if (flags & TTF_CONSTREQS && updateamount != origupdateamount)
 					return eval->Invalid("New required token amounts for updates are not the same as original requirements!");
                 
-                // TODO: Get latest updateamount from previous transaction.
+				// Get latest update from previous transaction.
+				prevupdatetxid = GetLatestConfirmedTagUpdate(cp,tokentagid,updatenum);
 
-                // TODO: Get this update's number count, compare it with maxupdates to make sure we don't exceed max allowed amount.
-
+				// Checking to make sure we don't exceed max allowed updates.
+				if (updatenum >= maxupdates)
+					return eval->Invalid("Maximum allowed amount of updates for this token tag exceeded, max updates is "+std::to_string(maxupdates)+", got "+std::to_string(updatenum)+"!");
+                
                 // Get the tokenids from the create tx.
-				tokenlist = GetValidTagTokenIds(createtx, origsrcpub);
+				tokenlist = GetValidTagTokenIds(cpTokens, tokentagtx, origsrcpub);
+
+				GetTokensCCaddress(cpTokens, tokenaddr, srcpub);
+				GetCCaddress(cp, srcCCaddress, srcpub);
 
                 // Check token balance of tokenid from srcpub, at this blockheight. Compare with latest updateamount.
 				for (auto tokenid : tokenlist)
 				{
-					//TODO fix: if (GetTokenBalance(srcpub, tokenid, false) < updateamount)
-						return eval->Invalid("Creator pubkey of token tag update doesn't own enough tokens!");
+					if ((tokenbalance = CCTokenBalance(cpTokens,tokenaddr,tokenid)) < updateamount)
+						return eval->Invalid("Creator pubkey of token tag update doesn't own enough tokens for id: "+std::to_string(tokenid.GetHex())+", need "+std::to_string(updateamount)+", got "+std::to_string(tokenbalance)+"!");
 				}
 
 				// Check vout boundaries for tag update transaction.
@@ -387,9 +457,21 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 
 // --- RPC implementations for transaction creation ---
 
-// tokentagcreate tokenids [updateamount][flags][maxupdates]
-// tokentagupdate tokentagid "data" [updateamount]
-// tokentagclose tokentagid "data"
+UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> tokenids,std::vector<CAmount> updateamounts,uint8_t flags,int64_t maxupdates)
+{
+	CCerror = "not done yet";
+	return NullUniValue;
+}
+
+UniValue TokenTagUpdate(const CPubKey& pk,uint64_t txfee,uint256 tokentagid,std::string data,std::vector<CAmount> updateamounts)
+{
+	CCERR_RESULT("tokentagscc", CCLOG_INFO, stream << "not done yet");
+}
+
+UniValue TokenTagClose(const CPubKey& pk,uint64_t txfee,uint256 tokentagid,std::string data)
+{
+	CCERR_RESULT("tokentagscc", CCLOG_INFO, stream << "not done yet");
+}
 
 // --- RPC implementations for transaction analysis ---
 

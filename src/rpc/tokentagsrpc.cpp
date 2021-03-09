@@ -34,6 +34,147 @@ using namespace std;
 extern void Lock2NSPV(const CPubKey &pk);
 extern void Unlock2NSPV(const CPubKey &pk);
 
+UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
+{
+    UniValue result(UniValue::VOBJ);
+
+	uint8_t flags;
+	int64_t maxupdates;
+    std::vector<CAmount> updateamounts;
+
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "tokentagcreate {\"tokenid\":updateamount,...} [flags][maxupdates]\n"
+            );
+    if (ensure_CCrequirements(EVAL_TOKENTAGS) < 0 || ensure_CCrequirements(EVAL_TOKENS) < 0)
+        throw runtime_error(CC_REQUIREMENTS_MSG);
+    
+    CCerror.clear();
+
+    //Lock2NSPV(mypk); // nSPV for tokens is unsupported at the time of writing - Dan
+
+    if (!EnsureWalletIsAvailable(false))
+        throw runtime_error("wallet is required");
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    UniValue tokens = params[0].get_obj();
+    std::vector<uint256> tokenids = tokens.getKeys();
+    
+    int32_t i = 0;
+    for (const uint256& tokenid : tokenids) {
+        if (tokenid == zeroid)
+            return MakeResultError("TokenID #"+std::to_string(tokenid.GetHex())+" invalid or null"); 
+
+        CAmount nAmount = AmountFromValue(tokenids[i]);
+        updateamounts.push_back(nAmount);
+        i++;
+    }
+
+    flags = 0;
+    if (params.size() >= 2)
+        flags = atoll(params[1].get_str().c_str());
+    
+    maxupdates = 0;
+    if (params.size() == 3)
+    {
+		maxupdates = atoll(params[2].get_str().c_str());
+        if (maxupdates < -1)
+            return MakeResultError("Invalid maxupdates, must be -1, 0 or any positive number"); 
+    }
+
+    result = TokenTagCreate(mypk,0,tokenids,updateamounts,flags,maxupdates);
+    RETURN_IF_ERROR(CCerror);
+
+    //Unlock2NSPV(mypk);
+
+    if( result.size() > 0 )
+        return MakeResultSuccess(result);
+    else
+        return MakeResultError("Could not create token tag");
+}
+
+UniValue tokentagupdate(const UniValue& params, bool fHelp, const CPubKey& mypk)
+{
+    UniValue result(UniValue::VOBJ);
+
+	uint256 tokentagid;
+	std::string data = "";
+    //int64_t updateamount;
+
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw runtime_error(
+            "tokentagupdate tokentagid \"data\" [updateamount]\n"
+            );
+    if (ensure_CCrequirements(EVAL_TOKENTAGS) < 0 || ensure_CCrequirements(EVAL_TOKENS) < 0)
+        throw runtime_error(CC_REQUIREMENTS_MSG);
+    
+    Lock2NSPV(mypk);
+
+    tokentagid = Parseuint256((char *)params[0].get_str().c_str());
+	if (tokentagid == zeroid)
+    {
+		Unlock2NSPV(mypk);
+        throw runtime_error("Token tag id invalid\n");
+    }
+    
+    data = params[1].get_str();
+    if (data.empty() || data.size() > 128)
+    {
+        Unlock2NSPV(mypk);
+        throw runtime_error("Data string must not be empty and be up to 128 characters\n");
+    }
+
+	if (params.size() == 3)
+    {
+        //TODO: how to pass an array of CAmount here?
+    }
+
+    result = TokenTagUpdate(mypk,0,tokentagid,data,updateamount);
+    if (result[JSON_HEXTX].getValStr().size() > 0)
+        result.push_back(Pair("result", "success"));
+    Unlock2NSPV(mypk);
+    return(result);
+}
+
+UniValue tokentagclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
+{
+    UniValue result(UniValue::VOBJ);
+
+	uint256 tokentagid;
+	std::string data = "";
+
+    if (fHelp || params.size() != 2)
+        throw runtime_error(
+            "tokentagclose tokentagid \"data\"\n"
+            );
+    if (ensure_CCrequirements(EVAL_TOKENTAGS) < 0 || ensure_CCrequirements(EVAL_TOKENS) < 0)
+        throw runtime_error(CC_REQUIREMENTS_MSG);
+    
+    Lock2NSPV(mypk);
+
+    tokentagid = Parseuint256((char *)params[0].get_str().c_str());
+	if (tokentagid == zeroid)
+    {
+		Unlock2NSPV(mypk);
+        throw runtime_error("Token tag id invalid\n");
+    }
+    
+    data = params[1].get_str();
+    if (data.empty() || data.size() > 128)
+    {
+        Unlock2NSPV(mypk);
+        throw runtime_error("Data string must not be empty and be up to 128 characters\n");
+    }
+
+    result = TokenTagClose(mypk,0,tokentagid,data);
+    if (result[JSON_HEXTX].getValStr().size() > 0)
+        result.push_back(Pair("result", "success"));
+    Unlock2NSPV(mypk);
+    return(result);
+}
+
+// Additional RPCs for token transaction analysis
+
 UniValue tokenowners(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     uint256 tokenid;
@@ -87,6 +228,9 @@ static const CRPCCommand commands[] =
     { "tokens",    "tokeninventory",  &tokeninventory,  true },
     // token tags
 	{ "tokentags", "tokentagaddress", &tokentagaddress, true },
+    { "tokentags", "tokentagcreate",  &tokentagcreate,  true },
+    { "tokentags", "tokentagupdate",  &tokentagupdate,  true },
+    { "tokentags", "tokentagclose",   &tokentagclose,   true },
 	//{ "tokentags",  "tokentaginfo",    &tokentaginfo,	true },
 };
 
