@@ -67,7 +67,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     for (const std::string& key : keys) {
         tokenid = Parseuint256((char *)key);
         if (tokenid == zeroid)
-            return MakeResultError("TokenID #"+std::to_string(tokenid.GetHex())+" invalid or null"); 
+            return MakeResultError("TokenID #"+tokenid.GetHex()+" invalid or null"); 
 
         CAmount nAmount = AmountFromValue(keys[i]);
         tokenids.push_back(tokenid);
@@ -86,7 +86,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         if (maxupdates < -1)
             return MakeResultError("Invalid maxupdates, must be -1, 0 or any positive number"); 
     }
-    
+
     //Unlock2NSPV(mypk);
 
     UniValue sigData = TokenTagCreate(mypk,0,tokenids,updateamounts,flags,maxupdates);

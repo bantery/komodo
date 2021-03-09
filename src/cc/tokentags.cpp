@@ -418,7 +418,7 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 				for (auto tokenid : tokenlist)
 				{
 					if ((tokenbalance = CCTokenBalance(cpTokens,tokenaddr,tokenid)) < updateamount)
-						return eval->Invalid("Creator pubkey of token tag update doesn't own enough tokens for id: "+std::to_string(tokenid.GetHex())+", need "+std::to_string(updateamount)+", got "+std::to_string(tokenbalance)+"!");
+						return eval->Invalid("Creator pubkey of token tag update doesn't own enough tokens for id: "+tokenid.GetHex()+", need "+std::to_string(updateamount)+", got "+std::to_string(tokenbalance)+"!");
 				}
 
 				// Check vout boundaries for tag update transaction.
