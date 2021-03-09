@@ -99,7 +99,7 @@ UniValue tokentagupdate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
 	uint256 tokentagid;
 	std::string data = "";
-    //int64_t updateamount;
+    std::vector<CAmount> updateamounts;
 
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
@@ -129,7 +129,7 @@ UniValue tokentagupdate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         //TODO: how to pass an array of CAmount here?
     }
 
-    result = TokenTagUpdate(mypk,0,tokentagid,data,updateamount);
+    result = TokenTagUpdate(mypk,0,tokentagid,data,updateamounts);
     if (result[JSON_HEXTX].getValStr().size() > 0)
         result.push_back(Pair("result", "success"));
     Unlock2NSPV(mypk);
