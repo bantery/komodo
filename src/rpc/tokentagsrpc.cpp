@@ -65,7 +65,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     
     int32_t i = 0;
     for (const std::string& key : keys) {
-        tokenid = Parseuint256((char *)key);
+        tokenid = Parseuint256((char *)key.c_str());
         if (tokenid == zeroid)
             return MakeResultError("TokenID #"+tokenid.GetHex()+" invalid or null"); 
 
