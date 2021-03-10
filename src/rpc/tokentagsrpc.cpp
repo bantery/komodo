@@ -48,7 +48,7 @@ UniValue testsendmany(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    string strAccount = AccountFromValue(params[0]);
+    string strAccount = (params[0].get_str());
     UniValue sendTo = params[1].get_obj();
     int nMinDepth = 1;
     if (params.size() > 2)
@@ -69,7 +69,7 @@ UniValue testsendmany(const UniValue& params, bool fHelp, const CPubKey& mypk)
     std::vector<std::string> keys = sendTo.getKeys();
     int32_t i = 0;
     for (const std::string& name_ : keys) {
-        CTxDestination dest = DecodeDestination(name_);
+        /*CTxDestination dest = DecodeDestination(name_);
         if (!IsValidDestination(dest)) {
             CScript tmpspk;
             tmpspk << ParseHex(name_) << OP_CHECKSIG;
@@ -92,18 +92,18 @@ UniValue testsendmany(const UniValue& params, bool fHelp, const CPubKey& mypk)
         }
 
         CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
-        vecSend.push_back(recipient);
+        vecSend.push_back(recipient);*/
     }
 
     EnsureWalletIsUnlocked();
 
     // Check funds
-    CAmount nBalance = GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
+    /*CAmount nBalance = GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
     if (totalAmount > nBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");*/
 
     // Send
-    CReserveKey keyChange(pwalletMain);
+    /*CReserveKey keyChange(pwalletMain);
     CAmount nFeeRequired = 0;
     int nChangePosRet = -1;
     string strFailReason;
@@ -111,9 +111,10 @@ UniValue testsendmany(const UniValue& params, bool fHelp, const CPubKey& mypk)
     if (!fCreated)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
     if (!pwalletMain->CommitTransaction(wtx, keyChange))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");*/
 
-    return wtx.GetHash().GetHex();
+    //return wtx.GetHash().GetHex();
+    return(result);
 }
 
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
