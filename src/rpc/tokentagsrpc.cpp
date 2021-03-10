@@ -36,7 +36,7 @@ extern void Unlock2NSPV(const CPubKey &pk);
 
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
-    UniValue result(UniValue::VOBJ), /*tokens(UniValue::VOBJ),*/ jsonParams(UniValue::VOBJ); 
+    UniValue result(UniValue::VOBJ), jsonParams(UniValue::VOBJ); 
     std::string hex;
 
 	uint8_t flags;
@@ -60,12 +60,6 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    //object.push_back(params[0]);
-    //UniValue tokens = object.get_obj();
-    //tokens.push_back(params[0]);
-    //if (!tokens.isObject())
-    //    return MakeResultError("Invalid parameter, expected object.");
-    
     // parse json params:
     if (params[0].getType() == UniValue::VOBJ)
         jsonParams = params[0].get_obj();
@@ -74,56 +68,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     if (jsonParams.getType() != UniValue::VOBJ || jsonParams.empty())
         return MakeResultError("Invalid parameter 1, expected object.");
 
-    //UniValue test = tokens.get_obj();
-    //std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
-
-    //if (tokens.get_obj().empty())
-    //    return MakeResultError("Invalid parameter, tokenid:updateamount object empty.");
-    
-    
-
-    // UniValue tokens(UniValue::VARR);
-    // tokens = params[0].get_array();
-
-    // if (tokens.size() == 0)
-    //     return MakeResultError("Invalid parameter, tokens array is empty."); 
-
-    // for (const UniValue& o : tokens.getValues())
-    // {
-    //     if (!o.isObject())
-    //         return MakeResultError("Invalid parameter, expected object."); 
-        
-    //     // sanity check, report error if unknown key-value pairs
-    //     for (const string& name_ : o.getKeys())
-    //     {
-    //         std::string s = name_;
-    //         if (s != "tokenid" && s != "updateamount")
-    //             return MakeResultError(string("Invalid parameter, unknown key: ")+s); 
-    //     }
-
-    //     tokenid = Parseuint256((char *)find_value(o,"tokenid").get_str().c_str());
-    //     if (tokenid == zeroid)
-    //         return MakeResultError("Invalid parameter, tokenid in object invalid or null"); 
-
-    //     for (const auto &entry : tokenids) 
-    //     {
-    //         if (entry == tokenid)
-    //             return MakeResultError(string("Invalid parameter, duplicated tokenid: ")+tokenid.GetHex());
-    //     }
-    //     tokenids.push_back(tokenid);
-        
-    //     UniValue av = find_value(o, "updateamount");
-    //     CAmount nAmount = AmountFromValue(av);
-    //     if (nAmount < 0)
-    //         return MakeResultError("Invalid parameter, updateamount must be positive"); 
-        
-    //     updateamounts.push_back(nAmount);
-    // }
-
-    //UniValue tokens = params[0].get_obj();
-
     std::vector<std::string> keys = jsonParams.getKeys();
-    
     int32_t i = 0;
     for (const std::string& key : keys)
     {
@@ -137,8 +82,8 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         }
         tokenids.push_back(tokenid);
 
-        CAmount nAmount = AmountFromValue(jsonParams[i]);
-        if (nAmount < 0)
+        CAmount nAmount = atoll(jsonParams[i].get_str().c_str());
+        if (nAmount <= 0)
             return MakeResultError("Invalid parameter, updateamount must be positive"); 
         updateamounts.push_back(nAmount);
         i++;
