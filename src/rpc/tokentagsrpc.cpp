@@ -36,7 +36,7 @@ extern void Unlock2NSPV(const CPubKey &pk);
 
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
-    UniValue result(UniValue::VOBJ), tokens(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ), /*tokens(UniValue::VOBJ),*/ jsonParams(UniValue::VOBJ); 
     std::string hex;
 
 	uint8_t flags;
@@ -62,18 +62,25 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     //object.push_back(params[0]);
     //UniValue tokens = object.get_obj();
-    result.push_back(params[0]);
-    if (!result.isObject())
-        return MakeResultError("Invalid parameter, expected object.");
+    //tokens.push_back(params[0]);
+    //if (!tokens.isObject())
+    //    return MakeResultError("Invalid parameter, expected object.");
+    
+    // parse json params:
+    if (params[0].getType() == UniValue::VOBJ)
+        jsonParams = params[0].get_obj();
+    else if (params[0].getType() == UniValue::VSTR)  // json in quoted string '{...}'
+        jsonParams.read(params[0].get_str().c_str());
+    if (jsonParams.getType() != UniValue::VOBJ || jsonParams.empty())
+        return MakeResultError("Invalid parameter 1, expected object.");
 
     //UniValue test = tokens.get_obj();
-    std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
+    //std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
 
     //if (tokens.get_obj().empty())
     //    return MakeResultError("Invalid parameter, tokenid:updateamount object empty.");
     
-    Unlock2NSPV(mypk);
-    return(result);
+    
 
     // UniValue tokens(UniValue::VARR);
     // tokens = params[0].get_array();
@@ -115,7 +122,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     //UniValue tokens = params[0].get_obj();
 
-    std::vector<std::string> keys = tokens.get_obj().getKeys();
+    std::vector<std::string> keys = jsonParams.getKeys();
     if (keys.empty())
         return MakeResultError("Invalid parameter, couldn't find any keys in object.");
     
