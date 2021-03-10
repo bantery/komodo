@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <numeric>
-#include "univalue.h"
+#include <univalue.h>
 #include "amount.h"
 #include "rpc/server.h"
 #include "rpc/protocol.h"
