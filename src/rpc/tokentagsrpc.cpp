@@ -60,9 +60,10 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    std::cerr << "Param 0: "+params[0].get_str()+" "+(int)(params[0].isArray())+"" << std::endl;
+    std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
     
-    UniValue tokens = params[0].get_array();
+    UniValue tokens(UniValue::VARR);
+    tokens = params[0].get_array();
 
     if (tokens.size() == 0)
         return MakeResultError("Invalid parameter, tokens array is empty."); 
