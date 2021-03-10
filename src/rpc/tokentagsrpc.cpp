@@ -65,8 +65,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     tokens.push_back(params[0]);
     if (!tokens.isObject())
         return MakeResultError("Invalid parameter, expected object.");
-    if (!tokens.get_obj())
-        return MakeResultError("Invalid parameter, test.");
+    UniValue test = tokens.get_obj();
     if (tokens.empty())
         return MakeResultError("Invalid parameter, tokenid:updateamount object empty.");
     
