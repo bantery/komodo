@@ -67,9 +67,9 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         return MakeResultError("Invalid parameter, expected object.");
 
     UniValue test = tokens.get_obj();
-    std::cerr << "Param 0: "+tokens.get_str()+"" << std::endl;
-    
-    if (tokens.empty())
+    std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
+
+    if (tokens.get_obj().empty())
         return MakeResultError("Invalid parameter, tokenid:updateamount object empty.");
     
     
@@ -114,7 +114,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     //UniValue tokens = params[0].get_obj();
 
-    std::vector<std::string> keys = tokens.getKeys();
+    std::vector<std::string> keys = tokens.get_obj().getKeys();
     if (keys.empty())
         return MakeResultError("Invalid parameter, couldn't find any keys in object.");
     
