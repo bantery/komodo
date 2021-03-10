@@ -62,17 +62,18 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     //object.push_back(params[0]);
     //UniValue tokens = object.get_obj();
-    tokens.push_back(params[0]);
-    if (!tokens.isObject())
+    result.push_back(params[0]);
+    if (!result.isObject())
         return MakeResultError("Invalid parameter, expected object.");
 
-    UniValue test = tokens.get_obj();
+    //UniValue test = tokens.get_obj();
     std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
 
-    if (tokens.get_obj().empty())
-        return MakeResultError("Invalid parameter, tokenid:updateamount object empty.");
+    //if (tokens.get_obj().empty())
+    //    return MakeResultError("Invalid parameter, tokenid:updateamount object empty.");
     
-    
+    Unlock2NSPV(mypk);
+    return(result);
 
     // UniValue tokens(UniValue::VARR);
     // tokens = params[0].get_array();
