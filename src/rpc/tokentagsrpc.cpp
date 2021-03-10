@@ -110,7 +110,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         tokenid = Parseuint256((char *)key.c_str());
         if (tokenid == zeroid)
             return MakeResultError("Invalid parameter, tokenid in object invalid or null"); 
-        for (const auto &entry : keys) 
+        for (const auto &entry : tokenids) 
         {
             if (entry == tokenid)
                 return MakeResultError(string("Invalid parameter, duplicated tokenid: ")+tokenid.GetHex());
