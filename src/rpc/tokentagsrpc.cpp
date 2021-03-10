@@ -61,7 +61,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    result.push_back(Pair("IsImported", "yes"));
+    result.push_back(params[0]);
     UniValue test = result.get_obj();
     if (test.isObject())
         std::cerr << "test is object" << std::endl;
