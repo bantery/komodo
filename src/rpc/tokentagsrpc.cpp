@@ -82,7 +82,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         }
         tokenids.push_back(tokenid);
 
-        CAmount nAmount = jsonParams[i];
+        CAmount nAmount = AmountFromValue(sendTo[i]) * COIN;
         if (nAmount <= 0)
             return MakeResultError("Invalid parameter, updateamount must be positive"); 
         updateamounts.push_back(nAmount);
