@@ -47,7 +47,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
-            "tokentagcreate [{\"tokenid\":... ,\"updateamount\":...},...] ( flags ) ( maxupdates )\n"
+            "tokentagcreate {\"tokenid\":updateamount,...} [flags][maxupdates]\n" //[{\"tokenid\":... ,\"updateamount\":...},...] ( flags ) ( maxupdates )
             );
     if (ensure_CCrequirements(EVAL_TOKENTAGS) < 0 || ensure_CCrequirements(EVAL_TOKENS) < 0)
         throw runtime_error(CC_REQUIREMENTS_MSG);
@@ -62,42 +62,66 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
     
-    UniValue tokens(UniValue::VARR);
-    tokens = params[0].get_array();
+    // UniValue tokens(UniValue::VARR);
+    // tokens = params[0].get_array();
 
-    if (tokens.size() == 0)
-        return MakeResultError("Invalid parameter, tokens array is empty."); 
+    // if (tokens.size() == 0)
+    //     return MakeResultError("Invalid parameter, tokens array is empty."); 
 
-    for (const UniValue& o : tokens.getValues())
-    {
-        if (!o.isObject())
-            return MakeResultError("Invalid parameter, expected object."); 
+    // for (const UniValue& o : tokens.getValues())
+    // {
+    //     if (!o.isObject())
+    //         return MakeResultError("Invalid parameter, expected object."); 
         
-        // sanity check, report error if unknown key-value pairs
-        for (const string& name_ : o.getKeys())
-        {
-            std::string s = name_;
-            if (s != "tokenid" && s != "updateamount")
-                return MakeResultError(string("Invalid parameter, unknown key: ")+s); 
-        }
+    //     // sanity check, report error if unknown key-value pairs
+    //     for (const string& name_ : o.getKeys())
+    //     {
+    //         std::string s = name_;
+    //         if (s != "tokenid" && s != "updateamount")
+    //             return MakeResultError(string("Invalid parameter, unknown key: ")+s); 
+    //     }
 
-        tokenid = Parseuint256((char *)find_value(o,"tokenid").get_str().c_str());
+    //     tokenid = Parseuint256((char *)find_value(o,"tokenid").get_str().c_str());
+    //     if (tokenid == zeroid)
+    //         return MakeResultError("Invalid parameter, tokenid in object invalid or null"); 
+
+    //     for (const auto &entry : tokenids) 
+    //     {
+    //         if (entry == tokenid)
+    //             return MakeResultError(string("Invalid parameter, duplicated tokenid: ")+tokenid.GetHex());
+    //     }
+    //     tokenids.push_back(tokenid);
+        
+    //     UniValue av = find_value(o, "updateamount");
+    //     CAmount nAmount = AmountFromValue(av);
+    //     if (nAmount < 0)
+    //         return MakeResultError("Invalid parameter, updateamount must be positive"); 
+        
+    //     updateamounts.push_back(nAmount);
+    // }
+
+    UniValue tokens = params[0].get_obj();
+
+    std::vector<std::string> keys = tokens.getKeys();
+    
+    int32_t i = 0;
+    for (const std::string& key : keys)
+    {
+        tokenid = Parseuint256((char *)key.c_str());
         if (tokenid == zeroid)
             return MakeResultError("Invalid parameter, tokenid in object invalid or null"); 
-
-        for (const auto &entry : tokenids) 
+        for (const auto &entry : keys) 
         {
             if (entry == tokenid)
                 return MakeResultError(string("Invalid parameter, duplicated tokenid: ")+tokenid.GetHex());
         }
         tokenids.push_back(tokenid);
-        
-        UniValue av = find_value(o, "updateamount");
-        CAmount nAmount = AmountFromValue(av);
+
+        CAmount nAmount = AmountFromValue(keys[i]);
         if (nAmount < 0)
             return MakeResultError("Invalid parameter, updateamount must be positive"); 
-        
         updateamounts.push_back(nAmount);
+        i++;
     }
 
     if (tokenids.size() != updateamounts.size())
