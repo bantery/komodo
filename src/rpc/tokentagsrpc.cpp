@@ -45,7 +45,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     std::vector<uint256> tokenids;
     std::vector<CAmount> updateamounts;
 
-    if (fHelp || params.size() < 2 || params.size() > 4)
+    if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
             "tokentagcreate [{\"tokenid\":... ,\"updateamount\":...},...] ( flags ) ( maxupdates )\n"
             );
@@ -55,13 +55,13 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     CCerror.clear();
 
     //Lock2NSPV(mypk); // nSPV for tokens is unsupported at the time of writing - Dan
+
     if (!EnsureWalletIsAvailable(false))
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    std::string test = params[0].get_str();
-
-    UniValue tokens = params[1].get_array();
+    std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
+    UniValue tokens = params[0].get_array();
 
     if (tokens.size() == 0)
         return MakeResultError("Invalid parameter, tokens array is empty."); 
@@ -102,13 +102,13 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         return MakeResultError("Invalid parameter, mismatched amount of specified tokenids vs updateamounts"); 
 
     flags = 0;
-    if (params.size() >= 3)
-        flags = atoll(params[2].get_str().c_str());
+    if (params.size() >= 2)
+        flags = atoll(params[1].get_str().c_str());
     
     maxupdates = 0;
-    if (params.size() == 4)
+    if (params.size() == 3)
     {
-		maxupdates = atoll(params[3].get_str().c_str());
+		maxupdates = atoll(params[2].get_str().c_str());
         if (maxupdates < -1)
             return MakeResultError("Invalid maxupdates, must be -1, 0 or any positive number"); 
     }
