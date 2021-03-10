@@ -63,6 +63,8 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     result.push_back(Pair("IsImported", "yes"));
     UniValue test = result.get_obj();
+    if (test.isObject())
+        std::cerr << "test is object" << std::endl;
     
     std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
 
