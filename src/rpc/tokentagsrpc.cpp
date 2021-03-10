@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <numeric>
-#include <univalue.h>
+#include "univalue.h"
 #include "amount.h"
 #include "rpc/server.h"
 #include "rpc/protocol.h"
@@ -82,7 +82,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         }
         tokenids.push_back(tokenid);
 
-        CAmount nAmount = /*AmountFromValue(jsonParams[i]) * COIN;*/ atoll(jsonParams[i].getValStr().c_str());
+        CAmount nAmount = atoll(jsonParams[i].getValStr().c_str()); /*AmountFromValue(jsonParams[i]) * COIN;*/
         if (nAmount <= 0)
             return MakeResultError("Invalid parameter, updateamount must be positive"); 
         updateamounts.push_back(nAmount);
