@@ -113,8 +113,8 @@ UniValue testsendmany(const UniValue& params, bool fHelp, const CPubKey& mypk)
     if (!pwalletMain->CommitTransaction(wtx, keyChange))
         throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");*/
 
-    //return wtx.GetHash().GetHex();
-    return(result);
+    return wtx.GetHash().GetHex();
+    //return(result);
 }
 
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
