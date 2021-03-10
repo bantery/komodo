@@ -36,7 +36,7 @@ extern void Unlock2NSPV(const CPubKey &pk);
 
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
-    UniValue result(UniValue::VOBJ), temp(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ), object(UniValue::VOBJ);
     std::string hex;
 
 	uint8_t flags;
@@ -47,7 +47,6 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
-            //"tokentagcreate tokenid1 updateamount1 tokenid2 updateamount2 ... [flags][maxupdates]\n"
             "tokentagcreate {\"tokenid\":updateamount,...} [flags][maxupdates]\n"
             );
     if (ensure_CCrequirements(EVAL_TOKENTAGS) < 0 || ensure_CCrequirements(EVAL_TOKENS) < 0)
@@ -61,12 +60,14 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    temp.push_back(params[0]);
-    UniValue tokens = temp.get_obj();
-    if (tokens.isObject())
-        std::cerr << "test is object" << std::endl;
+    object.push_back(params[0]);
+    UniValue tokens = object.get_obj();
+    if (!tokens.isObject())
+        return MakeResultError("Invalid parameter, expected object.");
+    if (tokens.empty())
+        return MakeResultError("Invalid parameter, tokenid:updateamount object empty.");
     
-    std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
+    std::cerr << "Param 0: "+tokens.get_str()+"" << std::endl;
 
     // UniValue tokens(UniValue::VARR);
     // tokens = params[0].get_array();
@@ -109,6 +110,8 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     //UniValue tokens = params[0].get_obj();
 
     std::vector<std::string> keys = tokens.getKeys();
+    if (keys.empty())
+        return MakeResultError("Invalid parameter, couldn't find any keys in object.");
     
     int32_t i = 0;
     for (const std::string& key : keys)
@@ -152,7 +155,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     if (ResultHasTx(sigData) > 0)
         result = sigData;
     else
-        result = MakeResultError("Could not create token tag: " + ResultGetError(sigData) );
+        result = MakeResultError("Could not create token tag: " + ResultGetError(sigData));
     return(result);
 }
 
