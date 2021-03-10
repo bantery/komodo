@@ -36,7 +36,7 @@ extern void Unlock2NSPV(const CPubKey &pk);
 
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
-    UniValue result(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ), temp(UniValue::VOBJ);
     std::string hex;
 
 	uint8_t flags;
@@ -61,9 +61,9 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    result.push_back(params[0]);
-    UniValue test = result.get_obj();
-    if (test.isObject())
+    temp.push_back(params[0]);
+    UniValue tokens = temp.get_obj();
+    if (tokens.isObject())
         std::cerr << "test is object" << std::endl;
     
     std::cerr << "Param 0: "+params[0].get_str()+"" << std::endl;
@@ -106,7 +106,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     //     updateamounts.push_back(nAmount);
     // }
 
-    UniValue tokens = params[0].get_obj();
+    //UniValue tokens = params[0].get_obj();
 
     std::vector<std::string> keys = tokens.getKeys();
     
