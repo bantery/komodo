@@ -36,7 +36,7 @@ extern void Unlock2NSPV(const CPubKey &pk);
 
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
-    UniValue result(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ), tokens(UniValue::VARR);
     std::string hex;
 
 	uint8_t flags;
@@ -60,10 +60,8 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    std::cerr << "Param 0: "+std::to_string(params[0])+"" << std::endl;
-    UniValue tokens = params[0].get_array();
-
-    if (tokens.size()==0)
+    tokens = params[0].get_array();
+    if (tokens.size() == 0)
         return MakeResultError("Invalid parameter, tokens array is empty."); 
 
     for (const UniValue& o : tokens.getValues())
