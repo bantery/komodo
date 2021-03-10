@@ -34,6 +34,88 @@ using namespace std;
 extern void Lock2NSPV(const CPubKey &pk);
 extern void Unlock2NSPV(const CPubKey &pk);
 
+UniValue testsendmany(const UniValue& params, bool fHelp, const CPubKey& mypk)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() < 2 || params.size() > 5)
+        throw runtime_error(
+            "sendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
+            );
+    if ( ASSETCHAINS_PRIVATE != 0 )
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "cant use transparent addresses in private chain");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    string strAccount = AccountFromValue(params[0]);
+    UniValue sendTo = params[1].get_obj();
+    int nMinDepth = 1;
+    if (params.size() > 2)
+        nMinDepth = params[2].get_int();
+
+    CWalletTx wtx;
+    wtx.strFromAccount = strAccount;
+    if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
+        wtx.mapValue["comment"] = params[3].get_str();
+
+    UniValue subtractFeeFromAmount(UniValue::VARR);
+    if (params.size() > 4)
+        subtractFeeFromAmount = params[4].get_array();
+
+    std::vector<CRecipient> vecSend;
+
+    CAmount totalAmount = 0;
+    std::vector<std::string> keys = sendTo.getKeys();
+    int32_t i = 0;
+    for (const std::string& name_ : keys) {
+        CTxDestination dest = DecodeDestination(name_);
+        if (!IsValidDestination(dest)) {
+            CScript tmpspk;
+            tmpspk << ParseHex(name_) << OP_CHECKSIG;
+            if ( !ExtractDestination(tmpspk, dest, true) )
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Komodo address or pubkey: ") + name_);
+        }
+        CScript scriptPubKey = GetScriptForDestination(dest);
+        
+        CAmount nAmount = AmountFromValue(sendTo[i]);
+        i++;
+        if (nAmount <= 0)
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        totalAmount += nAmount;
+
+        bool fSubtractFeeFromAmount = false;
+        for (size_t idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
+            const UniValue& addr = subtractFeeFromAmount[idx];
+            if (addr.get_str() == name_)
+                fSubtractFeeFromAmount = true;
+        }
+
+        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+        vecSend.push_back(recipient);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    // Check funds
+    CAmount nBalance = GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
+    if (totalAmount > nBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+
+    // Send
+    CReserveKey keyChange(pwalletMain);
+    CAmount nFeeRequired = 0;
+    int nChangePosRet = -1;
+    string strFailReason;
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+    if (!fCreated)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+    if (!pwalletMain->CommitTransaction(wtx, keyChange))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");
+
+    return wtx.GetHash().GetHex();
+}
+
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     UniValue result(UniValue::VOBJ);
@@ -285,6 +367,7 @@ static const CRPCCommand commands[] =
     { "tokens",    "tokeninventory",  &tokeninventory,  true },
     // token tags
 	{ "tokentags", "tokentagaddress", &tokentagaddress, true },
+    { "tokentags", "testsendmany",  &testsendmany,  true },
     { "tokentags", "tokentagcreate",  &tokentagcreate,  true },
     { "tokentags", "tokentagupdate",  &tokentagupdate,  true },
     { "tokentags", "tokentagclose",   &tokentagclose,   true },
