@@ -123,8 +123,6 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     //UniValue tokens = params[0].get_obj();
 
     std::vector<std::string> keys = jsonParams.getKeys();
-    if (keys.empty())
-        return MakeResultError("Invalid parameter, couldn't find any keys in object.");
     
     int32_t i = 0;
     for (const std::string& key : keys)
@@ -139,7 +137,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         }
         tokenids.push_back(tokenid);
 
-        CAmount nAmount = AmountFromValue(keys[i]);
+        CAmount nAmount = AmountFromValue(jsonParams[i]);
         if (nAmount < 0)
             return MakeResultError("Invalid parameter, updateamount must be positive"); 
         updateamounts.push_back(nAmount);
