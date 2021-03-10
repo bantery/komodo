@@ -82,8 +82,11 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         if (tokenid == zeroid)
             return MakeResultError("Invalid parameter, tokenid in object invalid or null"); 
 
-        if (tokenids.find(tokenid) != tokenids.end())
-            return MakeResultError(string("Invalid parameter, duplicated tokenid: ")+tokenid.GetHex()); 
+        for (const auto &entry : tokenids) 
+        {
+            if (entry == tokenid)
+                return MakeResultError(string("Invalid parameter, duplicated tokenid: ")+tokenid.GetHex());
+        }
         tokenids.push_back(tokenid);
         
         UniValue av = find_value(o, "updateamount");
