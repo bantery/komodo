@@ -49,7 +49,7 @@ UniValue testsendmany(const UniValue& params, bool fHelp, const CPubKey& mypk)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     string strAccount = (params[0].get_str());
-    UniValue sendTo = params[1].get_obj();
+    const UniValue& sendTo = params[1].get_obj();
     int nMinDepth = 1;
     if (params.size() > 2)
         nMinDepth = params[2].get_int();
