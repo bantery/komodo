@@ -190,11 +190,14 @@ uint256 GetLatestConfirmedTagUpdate(struct CCcontract_info *cp,uint256 tokentagi
 	uint8_t funcid;
 	char globalCCaddress[65];
 
+	updatenum = 0;
+
 	// Get tokentag creation transaction and its op_return.
 	if (myGetTransaction(tokentagid, sourcetx, hashBlock) && sourcetx.vout.size() > 0 &&
 	DecodeTokenTagOpRet(sourcetx.vout[0].scriptPubKey) == 'c')
-	{
-		updatenum = 0;
+	{	
+		std::cerr << "checking vout0 token tag" << std::endl;
+		
 		GetCCaddress(cp, globalCCaddress, GetUnspendable(cp, NULL));
 
 		// Iterate through vout0 batons while we're finding valid Agreements transactions that spent the last baton.
