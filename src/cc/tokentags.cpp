@@ -79,17 +79,17 @@ uint8_t DecodeTokenTagCreateOpRet(CScript scriptPubKey, uint8_t &version, CPubKe
 	return(0);
 }
 
-CScript EncodeTokenTagUpdateOpRet(uint8_t version, uint256 tokentagid, CPubKey srcpub, std::string data, int64_t updateamount)
+CScript EncodeTokenTagUpdateOpRet(uint8_t version, uint256 tokentagid, CPubKey srcpub, std::string data, std::vector<CAmount> updateamounts)
 {
 	CScript opret; uint8_t evalcode = EVAL_TOKENTAGS, funcid = 'u';
-	opret << OP_RETURN << E_MARSHAL(ss << evalcode << funcid << version << tokentagid << srcpub << data << updateamount);
+	opret << OP_RETURN << E_MARSHAL(ss << evalcode << funcid << version << tokentagid << srcpub << data << updateamounts);
 	return(opret);
 }
-uint8_t DecodeTokenTagUpdateOpRet(CScript scriptPubKey, uint8_t &version, uint256 &tokentagid, CPubKey &srcpub, std::string &data, int64_t &updateamount)
+uint8_t DecodeTokenTagUpdateOpRet(CScript scriptPubKey, uint8_t &version, uint256 &tokentagid, CPubKey &srcpub, std::string &data, std::vector<CAmount> &updateamounts)
 {
 	std::vector<uint8_t> vopret; uint8_t evalcode, funcid;
 	GetOpReturnData(scriptPubKey, vopret);
-	if(vopret.size() > 2 && E_UNMARSHAL(vopret, ss >> evalcode; ss >> funcid; ss >> version; ss >> tokentagid; ss >> srcpub; ss >> data; ss >> updateamount) != 0 && evalcode == EVAL_TOKENTAGS)
+	if(vopret.size() > 2 && E_UNMARSHAL(vopret, ss >> evalcode; ss >> funcid; ss >> version; ss >> tokentagid; ss >> srcpub; ss >> data; ss >> updateamounts) != 0 && evalcode == EVAL_TOKENTAGS)
 		return(funcid);
 	return(0);
 }
@@ -121,7 +121,7 @@ uint8_t DecodeTokenTagOpRet(const CScript scriptPubKey)
 			case 'c':
 				return DecodeTokenTagCreateOpRet(scriptPubKey, dummyuint8, dummypubkey, dummyuint8, dummyint64, updateamounts);
 			case 'u':
-				return DecodeTokenTagUpdateOpRet(scriptPubKey, dummyuint8, dummyuint256, dummypubkey, dummystring, dummyint64);
+				return DecodeTokenTagUpdateOpRet(scriptPubKey, dummyuint8, dummyuint256, dummypubkey, dummystring, updateamounts);
 			default:
 				LOGSTREAM((char *)"tokentagscc", CCLOG_DEBUG1, stream << "DecodeTokenTagOpRet() illegal funcid=" << (int)funcid << std::endl);
 				return (uint8_t)0;
@@ -333,6 +333,7 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 	CPubKey srcpub,origsrcpub;
 	std::vector<uint256> tokenlist;
 	char globalCCaddress[65], srcCCaddress[65], tokenaddr[65];
+	int i = 0;
 
 	struct CCcontract_info *cpTokens, tokensC;
 	cpTokens = CCinit(&tokensC, EVAL_TOKENS);
@@ -418,7 +419,6 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 				GetCCaddress(cp, srcCCaddress, srcpub);
 
                 // Check token balance of tokenid from srcpub, at this blockheight. Compare with latest updateamount.
-				int i = 0;
 				for (auto tokenid : tokenlist)
 				{
 					if ((tokenbalance = CCTokenBalance(cpTokens,tokenaddr,tokenid)) < updateamounts[i])
