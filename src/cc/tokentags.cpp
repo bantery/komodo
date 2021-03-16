@@ -422,7 +422,7 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 				for (auto tokenid : tokenlist)
 				{
 					if ((tokenbalance = CCTokenBalance(cpTokens,tokenaddr,tokenid)) < updateamounts[i])
-						return eval->Invalid("Creator pubkey of token tag update doesn't own enough tokens for id: "+tokenid.GetHex()+", need "+std::to_string(updateamount)+", got "+std::to_string(tokenbalance)+"!");
+						return eval->Invalid("Creator pubkey of token tag update doesn't own enough tokens for id: "+tokenid.GetHex()+", need "+std::to_string(updateamounts[i])+", got "+std::to_string(tokenbalance)+"!");
 					i++;
 				}
 
@@ -528,7 +528,7 @@ UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> to
 			{
 				if (inputs < total)
 				{
-					CCerror = "Insufficient token inputs for tokenid "+std::to_string((*tokenid).GetHex())+", retrieved "+std::to_string(inputs)+", requires "+std::to_string(total)+"";
+					CCerror = "Insufficient token inputs for tokenid "+(*tokenid).GetHex()+", retrieved "+std::to_string(inputs)+", requires "+std::to_string(total)+"";
 					return NullUniValue;
 				}
 				else
