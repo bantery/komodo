@@ -649,9 +649,11 @@ UniValue TokenTagInfo(uint256 txid)
 
 		// TODO iterate thru tokenids and updateamounts here
 
+		int i = 0;
 		for (auto tokenid : tokenids)
 		{
-       		result.push_back(Pair("tokenid",tokenid.GetHex()));
+       		result.push_back(Pair("tokenid"+std::to_string(i)+"",tokenid.GetHex()));
+			i++;
 		}
 
 		return (result);
