@@ -635,7 +635,7 @@ UniValue TokenTagInfo(uint256 txid)
 		if ((tokenids = GetValidTagTokenIds(cpTokens,tx,srcpub)).empty())
 			CCERR_RESULT("tokentagscc", CCLOG_INFO, stream << "Couldn't find valid token IDs within the specified token tag");
 
-		if ((latesttxid = GetLatestConfirmedTagUpdate(cp,txid,&updatenum) == zeroid)
+		if ((latesttxid = GetLatestConfirmedTagUpdate(cp,txid,updatenum) == zeroid)
 			CCERR_RESULT("tokentagscc", CCLOG_INFO, stream << "Couldn't find latest confirmed token tag update");
 
 		result.push_back(Pair("result","success"));
