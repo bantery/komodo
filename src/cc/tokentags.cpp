@@ -646,7 +646,7 @@ UniValue TokenTagInfo(uint256 txid)
 		// TODO iterate thru tokenids and updateamounts here
 
 		for (auto tokenid : tokenids)
-       		result.push_back(Pair("tokenid",tokenid.GetHex());
+       		result.push_back(Pair("tokenid",tokenid.GetHex()));
 
 		return (result);
 	}
