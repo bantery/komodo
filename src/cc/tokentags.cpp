@@ -282,7 +282,8 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 	uint8_t version, flags;
 	CPubKey srcpub;
 	char globalCCaddress[65];
-	int64_t maxupdates, origupdateamount;
+	int64_t maxupdates;
+	std::vector<CAmount> origupdateamounts;
 
     LOGSTREAM("agreementscc", CCLOG_INFO, stream << "ValidateTokenTagCreateTx: initiated" << std::endl);
 
@@ -299,7 +300,7 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 
 	// Check vout0, make sure its embedded opret is correct.
 	if (!MyGetCCopretV2(createtx.vout[0].scriptPubKey, opret) || DecodeTokenTagCreateOpRet(opret,version,srcpub,
-    flags,maxupdates,origupdateamount) != 'c')
+    flags,maxupdates,origupdateamounts) != 'c')
         return eval->Invalid("Token tag creation transaction data invalid!");
 	
 	// Verify that vout0 is a TokenTags vout and that it has the correct value and destination.
@@ -325,7 +326,8 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 	uint256 tokentagid,hashBlock,prevupdatetxid;
 	std::string data;
 	uint8_t funcid,version,flags;
-	int64_t updateamount,maxupdates,origupdateamount,updatenum,tokenbalance;
+	std::vector<CAmount> updateamounts,origupdateamounts;
+	int64_t maxupdates,updatenum,tokenbalance;
 	int32_t numvins,numvouts;
 	CScript opret;
 	CPubKey srcpub,origsrcpub;
@@ -376,7 +378,7 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 				// vout.n-1: empty op_return
 
                 // Get the data from the transaction's op_return.
-                DecodeTokenTagUpdateOpRet(opret,version,tokentagid,srcpub,data,updateamount);
+                DecodeTokenTagUpdateOpRet(opret,version,tokentagid,srcpub,data,updateamounts);
 				
                 // Check appended data length (should be <= 128 chars).
 				if (data.size() > 128)
@@ -392,14 +394,14 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 					return (false);
                 
                 // Get the data from the tokentagid transaction's op_return.
-				DecodeTokenTagCreateOpRet(opret,version,origsrcpub,flags,maxupdates,origupdateamount);
+				DecodeTokenTagCreateOpRet(opret,version,origsrcpub,flags,maxupdates,origupdateamounts);
 
                 // If the TTF_CREATORONLY flag is set, make sure the update is signed by original srcpub.
                 if (flags & TTF_CREATORONLY && srcpub != origsrcpub)
 					return eval->Invalid("Signing pubkey of tag update transaction is not the tag creator pubkey!");
 				
                 // If the TTF_CONSTREQS flag is set, make sure the required token amounts for updates are kept the same.
-                if (flags & TTF_CONSTREQS && updateamount != origupdateamount)
+                if (flags & TTF_CONSTREQS && updateamounts != origupdateamounts)
 					return eval->Invalid("New required token amounts for updates are not the same as original requirements!");
                 
 				// Get latest update from previous transaction.
@@ -416,10 +418,12 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 				GetCCaddress(cp, srcCCaddress, srcpub);
 
                 // Check token balance of tokenid from srcpub, at this blockheight. Compare with latest updateamount.
+				int i = 0;
 				for (auto tokenid : tokenlist)
 				{
-					if ((tokenbalance = CCTokenBalance(cpTokens,tokenaddr,tokenid)) < updateamount)
+					if ((tokenbalance = CCTokenBalance(cpTokens,tokenaddr,tokenid)) < updateamounts[i])
 						return eval->Invalid("Creator pubkey of token tag update doesn't own enough tokens for id: "+tokenid.GetHex()+", need "+std::to_string(updateamount)+", got "+std::to_string(tokenbalance)+"!");
+					i++;
 				}
 
 				// Check vout boundaries for tag update transaction.
@@ -524,7 +528,7 @@ UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> to
 			{
 				if (inputs < total)
 				{
-					CCerror = "Insufficient token inputs for tokenid "+std::to_string(*tokenid.GetHex())+", retrieved "+std::to_string(inputs)+", requires "+std::to_string(total)+"";
+					CCerror = "Insufficient token inputs for tokenid "+std::to_string((*tokenid).GetHex())+", retrieved "+std::to_string(inputs)+", requires "+std::to_string(total)+"";
 					return NullUniValue;
 				}
 				else
