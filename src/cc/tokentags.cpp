@@ -302,6 +302,8 @@ bool ValidateTokenTagCreateTx(struct CCcontract_info *cp,Eval* eval,const CTrans
 	if (!MyGetCCopretV2(createtx.vout[0].scriptPubKey, opret) || DecodeTokenTagCreateOpRet(opret,version,srcpub,
     flags,maxupdates,origupdateamounts) != 'c')
         return eval->Invalid("Token tag creation transaction data invalid!");
+
+		// TODO: verify updateamounts to make sure they don't exceed max supply?
 	
 	// Verify that vout0 is a TokenTags vout and that it has the correct value and destination.
 	else if (ConstrainVout(createtx.vout[0],1,globalCCaddress,CC_MARKER_VALUE)==0)
@@ -519,11 +521,19 @@ UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> to
 		// vout.0: marker to global CC address, with ccopret
 		mtx.vout.push_back(MakeCC1vout(EVAL_TOKENTAGS, CC_MARKER_VALUE, GetUnspendable(cp, NULL), &vData));
 
+		int i = 0;
 		// Collecting specified tokenids and sending them back to the same address, to prove full ownership.
 		for (std::vector<uint256>::const_iterator tokenid = tokenids.begin(); tokenid != tokenids.end(); tokenid++)
 		{
-			// vin.1-*: tokens
+			
 			total = CCfullsupply(*tokenid);
+			if (updateamounts[i] > total)
+			{
+				CCerror = "Invalid updateamount for tokenid "+(*tokenid).GetHex()+", exceeds max token supply";
+				return NullUniValue;
+			}
+			
+			// vin.1-*: tokens
 			if ((inputs = AddTokenCCInputs(cpTokens, mtx, tokenaddr, *tokenid, total, 60)) > 0)
 			{
 				if (inputs < total)
@@ -544,6 +554,7 @@ UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> to
             		mtx.vout.push_back(MakeTokensCC1vout(EVAL_TOKENS, inputs, mypk, &tokenvData));
 				}
 			}
+			i++;
 		}
 
 		sigData = FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,CScript());
