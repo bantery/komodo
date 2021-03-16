@@ -64,17 +64,17 @@ int64_t IsTokenTagsvout(struct CCcontract_info *cp,const CTransaction& tx, int32
 }
 
 // OP_RETURN data encoders and decoders for all Agreements transactions.
-CScript EncodeTokenTagCreateOpRet(uint8_t version, CPubKey srcpub, uint8_t flags, int64_t maxupdates, int64_t updateamount)
+CScript EncodeTokenTagCreateOpRet(uint8_t version, CPubKey srcpub, uint8_t flags, int64_t maxupdates, std::vector<CAmount> updateamounts)
 {
 	CScript opret; uint8_t evalcode = EVAL_TOKENTAGS, funcid = 'c';
-	opret << OP_RETURN << E_MARSHAL(ss << evalcode << funcid << version << srcpub << flags << maxupdates << updateamount);
+	opret << OP_RETURN << E_MARSHAL(ss << evalcode << funcid << version << srcpub << flags << maxupdates << updateamounts);
 	return(opret);
 }
-uint8_t DecodeTokenTagCreateOpRet(CScript scriptPubKey, uint8_t &version, CPubKey &srcpub, uint8_t &flags, int64_t &maxupdates, int64_t &updateamount)
+uint8_t DecodeTokenTagCreateOpRet(CScript scriptPubKey, uint8_t &version, CPubKey &srcpub, uint8_t &flags, int64_t &maxupdates, std::vector<CAmount> &updateamounts)
 {
 	std::vector<uint8_t> vopret; uint8_t evalcode, funcid;
 	GetOpReturnData(scriptPubKey, vopret);
-	if(vopret.size() > 2 && E_UNMARSHAL(vopret, ss >> evalcode; ss >> funcid; ss >> version; ss >> srcpub; ss >> flags; ss >> maxupdates; ss >> updateamount) != 0 && evalcode == EVAL_TOKENTAGS)
+	if(vopret.size() > 2 && E_UNMARSHAL(vopret, ss >> evalcode; ss >> funcid; ss >> version; ss >> srcpub; ss >> flags; ss >> maxupdates; ss >> updateamounts) != 0 && evalcode == EVAL_TOKENTAGS)
 		return(funcid);
 	return(0);
 }
@@ -100,6 +100,7 @@ uint8_t DecodeTokenTagOpRet(const CScript scriptPubKey)
 	std::vector<uint8_t> vopret;
 	CPubKey dummypubkey;
 	int64_t dummyint64;
+	std::vector<CAmount> updateamounts;
 	uint256 dummyuint256;
 	std::string dummystring;
 	uint8_t evalcode, funcid, *script, dummyuint8;
@@ -118,7 +119,7 @@ uint8_t DecodeTokenTagOpRet(const CScript scriptPubKey)
 		switch (funcid)
 		{
 			case 'c':
-				return DecodeTokenTagCreateOpRet(scriptPubKey, dummyuint8, dummypubkey, dummyuint8, dummyint64, dummyint64);
+				return DecodeTokenTagCreateOpRet(scriptPubKey, dummyuint8, dummypubkey, dummyuint8, dummyint64, updateamounts);
 			case 'u':
 				return DecodeTokenTagUpdateOpRet(scriptPubKey, dummyuint8, dummyuint256, dummypubkey, dummystring, dummyint64);
 			default:
@@ -463,7 +464,93 @@ bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransactio
 
 UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> tokenids,std::vector<CAmount> updateamounts,uint8_t flags,int64_t maxupdates)
 {
-	CCerror = "not done yet";
+	CScript opret;
+	CPubKey mypk;
+	int64_t total, inputs;
+	UniValue sigData;
+	char tokenaddr[KOMODO_ADDRESS_BUFSIZE];
+
+	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cp,C;
+	cp = CCinit(&C,EVAL_TOKENTAGS);
+	struct CCcontract_info *cpTokens,CTokens;
+	cpTokens = CCinit(&CTokens,EVAL_TOKENS);
+	if (txfee == 0)
+		txfee = CC_TXFEE;
+	mypk = pk.IsValid() ? pk : pubkey2pk(Mypubkey());
+
+	if (!(mypk.IsFullyValid()))
+	{
+        CCerror = "mypk is not set or invalid";
+        return NullUniValue;
+    }
+
+	// Temporary check for flags, will be removed/modified once more flags are introduced.
+	if (flags > 2)
+	{
+        CCerror = "Unsupported flags set, only TTF_CREATORONLY and TTF_CONSTREQS currently available";
+        return NullUniValue;
+    }
+
+	if (tokenids.size() != updateamounts.size())
+	{
+        CCerror = "Invalid parameter, mismatched amount of specified tokenids vs updateamounts";
+        return NullUniValue;
+    }
+	if (maxupdates < -1)
+	{
+        CCerror = "Invalid maxupdates, must be -1, 0 or any positive number";
+        return NullUniValue;
+    }
+
+	opret = EncodeTokenTagCreateOpRet(TOKENTAGSCC_VERSION, mypk, flags, maxupdates, updateamounts);
+	vscript_t vopret;
+    GetOpReturnData(opret, vopret);
+    std::vector<vscript_t> vData { vopret };
+
+    GetTokensCCaddress(cpTokens, tokenaddr, mypk);
+
+	if (AddNormalinputs2(mtx, txfee + CC_MARKER_VALUE, 5) > 0) // vin.*: normal input
+	{
+		// vout.0: marker to global CC address, with ccopret
+		mtx.vout.push_back(MakeCC1vout(EVAL_TOKENTAGS, CC_MARKER_VALUE, GetUnspendable(cp, NULL), &vData));
+
+		// Collecting specified tokenids and sending them back to the same address, to prove full ownership.
+		for (std::vector<uint256>::const_iterator tokenid = tokenids.begin(); tokenid != tokenids.end(); tokenid++)
+		{
+			// vin.1-*: tokens
+			total = CCfullsupply(*tokenid);
+			if ((inputs = AddTokenCCInputs(cpTokens, mtx, tokenaddr, *tokenid, total, 60)) > 0)
+			{
+				if (inputs < total)
+				{
+					CCerror = "Insufficient token inputs for tokenid "+std::to_string(*tokenid.GetHex())+", retrieved "+std::to_string(inputs)+", requires "+std::to_string(total)+"";
+					return NullUniValue;
+				}
+				else
+				{
+					std::vector<CPubKey> pks;
+					pks.push_back(mypk);
+					CScript tokenopret = EncodeTokenOpRetV1(*tokenid, pks, {});
+        			vscript_t tokenvopret;
+        			GetOpReturnData(tokenopret, tokenvopret);
+        			std::vector<vscript_t> tokenvData { tokenvopret };
+
+					// vout.1-*: tokens
+            		mtx.vout.push_back(MakeTokensCC1vout(EVAL_TOKENS, inputs, mypk, &tokenvData));
+				}
+			}
+		}
+
+		sigData = FinalizeCCTxExt(pk.IsValid(),0,cp,mtx,mypk,txfee,CScript());
+		if (!ResultHasTx(sigData))
+		{
+            CCerror = "Couldn't finalize token tag create transaction";
+            return NullUniValue;
+        }
+	}
+    
+	CCerror = "Error adding normal inputs, check if you have available funds or too many small value UTXOs";
 	return NullUniValue;
 }
 
