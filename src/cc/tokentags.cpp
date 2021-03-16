@@ -519,7 +519,7 @@ UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::string name,std::v
         return NullUniValue;
     }
 
-	opret = EncodeTokenTagCreateOpRet(TOKENTAGSCC_VERSION, mypk, name, flags, maxupdates, updateamounts);
+	opret = EncodeTokenTagCreateOpRet(TOKENTAGSCC_VERSION, name, mypk, flags, maxupdates, updateamounts);
 	vscript_t vopret;
     GetOpReturnData(opret, vopret);
     std::vector<vscript_t> vData { vopret };
