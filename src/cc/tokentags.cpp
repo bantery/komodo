@@ -240,15 +240,15 @@ std::vector<uint256> GetValidTagTokenIds(struct CCcontract_info *cpTokens,const 
 	{
 		tokenid = zeroid;
 		
-		std::cerr << "checking vout "+std::to_string(i)+"" << std::endl;
-		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret))
-			std::cerr << "MyGetCCopretV2 completed" << std::endl;
-		if (DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0)
-			std::cerr << "DecodeTokenOpRetV1 completed" << std::endl;
-		if (IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0)
-			std::cerr << "IsTokensvout completed" << std::endl;
-		if (createtx.vout[i].nValue == CCfullsupply(tokenid))
-			std::cerr << "CCfullsupply completed" << std::endl;
+		// std::cerr << "checking vout "+std::to_string(i)+"" << std::endl;
+		// if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret))
+		// 	std::cerr << "MyGetCCopretV2 completed" << std::endl;
+		// if (DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0)
+		// 	std::cerr << "DecodeTokenOpRetV1 completed" << std::endl;
+		// if (IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0)
+		// 	std::cerr << "IsTokensvout completed" << std::endl;
+		// if (createtx.vout[i].nValue == CCfullsupply(tokenid))
+		// 	std::cerr << "CCfullsupply completed" << std::endl;
 		
 		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret) &&
 		DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0 &&
@@ -644,6 +644,9 @@ UniValue TokenTagInfo(uint256 txid)
 		result.push_back(Pair("max_updates",maxupdates));
 
 		// TODO iterate thru tokenids and updateamounts here
+
+		for (auto tokenid : tokenids)
+       		result.push_back(Pair("tokenid",tokenid.GetHex());
 
 		return (result);
 	}
