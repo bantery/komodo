@@ -242,17 +242,17 @@ std::vector<uint256> GetValidTagTokenIds(struct CCcontract_info *cpTokens,const 
 		voutPubkeys.clear();
 		opret = CScript();
 		
-		std::cerr << "checking vout "+std::to_string(i)+"" << std::endl;
-		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret))
-			std::cerr << "MyGetCCopretV2 completed" << std::endl;
-		if (DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0)
-			std::cerr << "DecodeTokenOpRetV1 completed" << std::endl;
-		if (voutPubkeys.size() == 1 && voutPubkeys[0] == destpub)
-			std::cerr << "voutPubkeys completed" << std::endl;
-		if (IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0)
-			std::cerr << "IsTokensvout completed" << std::endl;
-		if (createtx.vout[i].nValue == CCfullsupply(tokenid))
-			std::cerr << "CCfullsupply completed" << std::endl;
+		// std::cerr << "checking vout "+std::to_string(i)+"" << std::endl;
+		// if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret))
+		// 	std::cerr << "MyGetCCopretV2 completed" << std::endl;
+		// if (DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0)
+		// 	std::cerr << "DecodeTokenOpRetV1 completed" << std::endl;
+		// if (voutPubkeys.size() == 1 && voutPubkeys[0] == destpub)
+		// 	std::cerr << "voutPubkeys completed" << std::endl;
+		// if (IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0)
+		// 	std::cerr << "IsTokensvout completed" << std::endl;
+		// if (createtx.vout[i].nValue == CCfullsupply(tokenid))
+		// 	std::cerr << "CCfullsupply completed" << std::endl;
 		
 		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret) &&
 		DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0 &&
@@ -613,18 +613,19 @@ UniValue TokenTagInfo(uint256 txid)
 {
 	UniValue result(UniValue::VOBJ);
 	char str[67];
-	uint256 hashBlock;
+	uint256 hashBlock,latesttxid;
 	uint8_t version,funcid,flags;
 	CPubKey srcpub;
 	CTransaction tx;
 	std::string name;
 	int32_t numvouts;
-	int64_t maxupdates;
+	int64_t maxupdates,updatenum;
 	std::vector<uint256> tokenids;
 	std::vector<CAmount> updateamounts;
 	CScript opret;
 
-	struct CCcontract_info *cpTokens,CTokens;
+	struct CCcontract_info *cp,C,*cpTokens,CTokens;
+	cp = CCinit(&C,EVAL_TOKENTAGS);
 	cpTokens = CCinit(&CTokens,EVAL_TOKENS);
 
 	if (myGetTransaction(txid,tx,hashBlock) != 0 && (numvouts = tx.vout.size()) > 0 &&
@@ -632,11 +633,10 @@ UniValue TokenTagInfo(uint256 txid)
 	(funcid = DecodeTokenTagCreateOpRet(opret,version,name,srcpub,flags,maxupdates,updateamounts)) == 'c')
 	{
 		if ((tokenids = GetValidTagTokenIds(cpTokens,tx,srcpub)).empty())
-		{
-			result.push_back(Pair("result", "error"));
-			result.push_back(Pair("error", "Couldn't find valid token IDs within the specified token tag"));
-			return result;
-		}
+			CCERR_RESULT("tokentagscc", CCLOG_INFO, stream << "Couldn't find valid token IDs within the specified token tag");
+
+		if ((latesttxid = GetLatestConfirmedTagUpdate(cp,txid,&updatenum) == zeroid)
+			CCERR_RESULT("tokentagscc", CCLOG_INFO, stream << "Couldn't find latest confirmed token tag update");
 
 		result.push_back(Pair("result","success"));
 		result.push_back(Pair("txid",txid.GetHex()));
@@ -644,7 +644,8 @@ UniValue TokenTagInfo(uint256 txid)
 		result.push_back(Pair("name",name));
 		result.push_back(Pair("creator_pubkey",pubkey33_str(str,(uint8_t *)&srcpub)));
 
-		// TODO: current amount of updates here
+		result.push_back(Pair("latest_update",latesttxid.GetHex()));
+		result.push_back(Pair("updates",updatenum));
 		result.push_back(Pair("max_updates",maxupdates));
 
 		// TODO iterate thru tokenids and updateamounts here
@@ -658,12 +659,8 @@ UniValue TokenTagInfo(uint256 txid)
 
 		return (result);
 	}
-	else
-	{
-        result.push_back(Pair("result", "error"));
-		result.push_back(Pair("error", "Invalid token tag creation transaction ID"));
-        return result;
-	}
+
+	CCERR_RESULT("tokentagscc", CCLOG_INFO, stream << "Invalid token tag creation transaction ID");
 }
 
 // tokentaglist [tokenid][pubkey]
