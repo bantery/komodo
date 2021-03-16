@@ -45,7 +45,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
     std::vector<uint256> tokenids;
     std::vector<CAmount> updateamounts;
 
-    if (fHelp || params.size() < 1 || params.size() > 3)
+    if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
             "tokentagcreate name {\"tokenid\":updateamount,...} [flags][maxupdates]\n"
             );
