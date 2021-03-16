@@ -236,16 +236,10 @@ std::vector<uint256> GetValidTagTokenIds(struct CCcontract_info *cpTokens,const 
 
 	numvouts = createtx.vout.size();
 
-	for (int i = 0; i<numvouts; i++)
+	for (int i = 1; i<numvouts; i++)
 	{
-		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret) &&
-		DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0 &&
-		voutPubkeys.size() == 1 && voutPubkeys[0] == destpub &&
-		IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0 &&
-		createtx.vout[i].nValue == CCfullsupply(tokenid))
-		{
-			tokenidlist.push_back(tokenid);
-		}
+		tokenid = zeroid;
+		
 		std::cerr << "checking vout "+std::to_string(i)+"" << std::endl;
 		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret))
 			std::cerr << "MyGetCCopretV2 completed" << std::endl;
@@ -255,6 +249,15 @@ std::vector<uint256> GetValidTagTokenIds(struct CCcontract_info *cpTokens,const 
 			std::cerr << "IsTokensvout completed" << std::endl;
 		if (createtx.vout[i].nValue == CCfullsupply(tokenid))
 			std::cerr << "CCfullsupply completed" << std::endl;
+		
+		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret) &&
+		DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) != 0 &&
+		voutPubkeys.size() == 1 && voutPubkeys[0] == destpub &&
+		IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0 &&
+		createtx.vout[i].nValue == CCfullsupply(tokenid))
+		{
+			tokenidlist.push_back(tokenid);
+		}
 	}
 
 	return tokenidlist;
