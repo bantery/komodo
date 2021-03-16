@@ -241,11 +241,20 @@ std::vector<uint256> GetValidTagTokenIds(struct CCcontract_info *cpTokens,const 
 		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret) &&
 		DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets) &&
 		voutPubkeys.size() == 1 && voutPubkeys[0] == destpub &&
-		IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) &&
+		IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0 &&
 		createtx.vout[i].nValue == CCfullsupply(tokenid))
 		{
 			tokenidlist.push_back(tokenid);
 		}
+		std::cerr << "checking vout "+std::to_string(i)+"" << std::endl;
+		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret))
+			std::cerr << "MyGetCCopretV2 completed" << std::endl;
+		if (DecodeTokenOpRetV1(opret, tokenid, voutPubkeys, oprets))
+			std::cerr << "DecodeTokenOpRetV1 completed" << std::endl;
+		if (IsTokensvout(true, true, cpTokens, NULL, createtx, i, tokenid) > 0)
+			std::cerr << "IsTokensvout completed" << std::endl;
+		if (createtx.vout[i].nValue == CCfullsupply(tokenid))
+			std::cerr << "CCfullsupply completed" << std::endl;
 	}
 
 	return tokenidlist;
