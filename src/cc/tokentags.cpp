@@ -189,6 +189,7 @@ uint256 GetLatestConfirmedTagUpdate(struct CCcontract_info *cp,uint256 tokentagi
 	int32_t vini, height, retcode;
 	uint8_t funcid;
 	char globalCCaddress[65];
+	CScript opret;
 
 	updatenum = 0;
 
@@ -197,7 +198,7 @@ uint256 GetLatestConfirmedTagUpdate(struct CCcontract_info *cp,uint256 tokentagi
 
 	// Get tokentag creation transaction and its op_return.
 	if (myGetTransaction(tokentagid, sourcetx, hashBlock) && sourcetx.vout.size() > 0 &&
-	DecodeTokenTagOpRet(sourcetx.vout[0].scriptPubKey) == 'c')
+	MyGetCCopretV2(sourcetx.vout[0].scriptPubKey, opret) && DecodeTokenTagOpRet(opret) == 'c')
 	{
 		GetCCaddress(cp, globalCCaddress, GetUnspendable(cp, NULL));
 
