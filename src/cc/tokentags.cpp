@@ -532,7 +532,7 @@ UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> to
 				CCerror = "Invalid updateamount for tokenid "+(*tokenid).GetHex()+", exceeds max token supply";
 				return NullUniValue;
 			}
-			
+
 			// vin.1-*: tokens
 			if ((inputs = AddTokenCCInputs(cpTokens, mtx, tokenaddr, *tokenid, total, 60)) > 0)
 			{
@@ -563,6 +563,8 @@ UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> to
             CCerror = "Couldn't finalize token tag create transaction";
             return NullUniValue;
         }
+
+		return sigData;
 	}
     
 	CCerror = "Error adding normal inputs, check if you have available funds or too many small value UTXOs";
