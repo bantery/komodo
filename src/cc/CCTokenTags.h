@@ -40,9 +40,11 @@ enum ETokenTagCreateFlags
 bool TokenTagsValidate(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, uint32_t nIn);
 
 // TODO: add RPC funcs here
-UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::vector<uint256> tokenids,std::vector<CAmount> updateamounts,uint8_t flags,int64_t maxupdates);
+UniValue TokenTagCreate(const CPubKey& pk,uint64_t txfee,std::string name,std::vector<uint256> tokenids,std::vector<CAmount> updateamounts,uint8_t flags,int64_t maxupdates);
 UniValue TokenTagUpdate(const CPubKey& pk,uint64_t txfee,uint256 tokentagid,std::string data,std::vector<CAmount> updateamounts);
 UniValue TokenTagClose(const CPubKey& pk,uint64_t txfee,uint256 tokentagid,std::string data);
+
+UniValue TokenTagInfo(uint256 txid);
 
 /// Returns pubkeys that have/had possession of the specified tokenid.
 /// @param tokenid id of token to check for

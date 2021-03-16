@@ -37,7 +37,7 @@ extern void Unlock2NSPV(const CPubKey &pk);
 UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 {
     UniValue result(UniValue::VOBJ), jsonParams(UniValue::VOBJ); 
-    std::string hex;
+    std::string hex, name;
 
 	uint8_t flags;
     uint256 tokenid;
@@ -47,7 +47,7 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
 
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
-            "tokentagcreate {\"tokenid\":updateamount,...} [flags][maxupdates]\n"
+            "tokentagcreate name {\"tokenid\":updateamount,...} [flags][maxupdates]\n"
             );
     if (ensure_CCrequirements(EVAL_TOKENTAGS) < 0 || ensure_CCrequirements(EVAL_TOKENS) < 0)
         throw runtime_error(CC_REQUIREMENTS_MSG);
@@ -60,11 +60,15 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         throw runtime_error("wallet is required");
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
+    name = params[0].get_str();
+    if (name.size() == 0 || name.size() > 32)   
+        return MakeResultError("Token tag name must not be empty and up to 32 characters");
+
     // parse json params:
-    if (params[0].getType() == UniValue::VOBJ)
-        jsonParams = params[0].get_obj();
-    else if (params[0].getType() == UniValue::VSTR)  // json in quoted string '{...}'
-        jsonParams.read(params[0].get_str().c_str());
+    if (params[1].getType() == UniValue::VOBJ)
+        jsonParams = params[1].get_obj();
+    else if (params[1].getType() == UniValue::VSTR)  // json in quoted string '{...}'
+        jsonParams.read(params[1].get_str().c_str());
     if (jsonParams.getType() != UniValue::VOBJ || jsonParams.empty())
         return MakeResultError("Invalid parameter 1, expected object.");
 
@@ -93,20 +97,20 @@ UniValue tokentagcreate(const UniValue& params, bool fHelp, const CPubKey& mypk)
         return MakeResultError("Invalid parameter, mismatched amount of specified tokenids vs updateamounts"); 
 
     flags = 0;
-    if (params.size() >= 2)
-        flags = atoll(params[1].get_str().c_str());
+    if (params.size() >= 3)
+        flags = atoll(params[2].get_str().c_str());
     
     maxupdates = 0;
-    if (params.size() == 3)
+    if (params.size() == 4)
     {
-		maxupdates = atoll(params[2].get_str().c_str());
+		maxupdates = atoll(params[3].get_str().c_str());
         if (maxupdates < -1)
             return MakeResultError("Invalid maxupdates, must be -1, 0 or any positive number"); 
     }
 
     //Unlock2NSPV(mypk);
 
-    UniValue sigData = TokenTagCreate(mypk,0,tokenids,updateamounts,flags,maxupdates);
+    UniValue sigData = TokenTagCreate(mypk,0,name,tokenids,updateamounts,flags,maxupdates);
     RETURN_IF_ERROR(CCerror);
     if (ResultHasTx(sigData) > 0)
         result = sigData;
@@ -195,6 +199,19 @@ UniValue tokentagclose(const UniValue& params, bool fHelp, const CPubKey& mypk)
     return(result);
 }
 
+UniValue tokentaginfo(const UniValue& params, bool fHelp, const CPubKey& mypk)
+{
+    uint256 txid;
+    if ( fHelp || params.size() != 1 )
+        throw runtime_error(
+            "tokentaginfo txid\n"
+            );
+    if (ensure_CCrequirements(EVAL_TOKENTAGS) < 0 || ensure_CCrequirements(EVAL_TOKENS) < 0)
+        throw runtime_error(CC_REQUIREMENTS_MSG);
+    txid = Parseuint256((char *)params[0].get_str().c_str());
+    return(TokenTagInfo(txid));
+}
+
 // Additional RPCs for token transaction analysis
 
 UniValue tokenowners(const UniValue& params, bool fHelp, const CPubKey& mypk)
@@ -253,7 +270,7 @@ static const CRPCCommand commands[] =
     { "tokentags", "tokentagcreate",  &tokentagcreate,  true },
     { "tokentags", "tokentagupdate",  &tokentagupdate,  true },
     { "tokentags", "tokentagclose",   &tokentagclose,   true },
-	//{ "tokentags",  "tokentaginfo",    &tokentaginfo,	true },
+	{ "tokentags",  "tokentaginfo",    &tokentaginfo,	true },
 };
 
 void RegisterTokenTagsRPCCommands(CRPCTable &tableRPC)
