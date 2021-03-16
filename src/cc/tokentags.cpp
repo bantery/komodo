@@ -240,6 +240,7 @@ std::vector<uint256> GetValidTagTokenIds(struct CCcontract_info *cpTokens,const 
 	{
 		tokenid = zeroid;
 		voutPubkeys.clear();
+		opret = CScript();
 		
 		std::cerr << "checking vout "+std::to_string(i)+"" << std::endl;
 		if (MyGetCCopretV2(createtx.vout[i].scriptPubKey, opret))
